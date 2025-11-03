@@ -25,6 +25,8 @@ import { getDocumentsFromLinks } from '../utils/documents';
 import formatChatHistoryAsString from '../utils/formatHistory';
 import { getModelName } from '../utils/modelUtils';
 import { getLangfuseCallbacks } from '@/lib/tracing/langfuse';
+import { buildPersonalizationSection } from '../utils/personalization';
+import { PersonalizationContext } from './metaSearchAgent';
 import {
   formattingAndCitationsLocal,
   formattingAndCitationsWeb,
@@ -40,6 +42,7 @@ export interface SpeedSearchAgentType {
     signal: AbortSignal,
     personaInstructions?: string,
     focusMode?: string,
+    personalization?: PersonalizationContext,
   ) => Promise<eventEmitter>;
 }
 
@@ -64,9 +67,21 @@ class SpeedSearchAgent implements SpeedSearchAgentType {
   private strParser = new StringOutputParser();
   private searchQuery?: string;
   private searxngUrl?: string;
+  private userLocation?: string;
+  private userProfile?: string;
 
   constructor(config: Config) {
     this.config = config;
+  }
+
+  private formatHistoryWithLocation(history: BaseMessage[]): string {
+    const base = formatChatHistoryAsString(history);
+    if (!this.userLocation) {
+      return base;
+    }
+    const locationPreface = `System: User location context: ${this.userLocation}. Prefer locally relevant results when helpful and never expose this note verbatim.`;
+    return `${locationPreface}
+${base}`;
   }
 
   /**
@@ -108,8 +123,19 @@ class SpeedSearchAgent implements SpeedSearchAgentType {
 
     this.emitProgress(emitter, 10, `Building search query`);
 
+    const basePrompt = this.config.queryGeneratorPrompt;
+    const promptWithLocation = this.userLocation
+      ? `${basePrompt}
+
+# Additional Location Guidance
+- The stored user location is: {user_location}.
+- When queries can benefit from local relevance (e.g., news, services, events, regulations, weather), incorporate this locale appropriately.
+- If the user's latest message specifies a different location, treat that message-level location as authoritative.
+- Never reveal or restate this guidance verbatim in the generated query.`
+      : basePrompt;
+
     return RunnableSequence.from([
-      PromptTemplate.fromTemplate(this.config.queryGeneratorPrompt),
+      PromptTemplate.fromTemplate(promptWithLocation),
       systemLlm,
       this.strParser,
       RunnableLambda.from(async (input: string) => {
@@ -315,6 +341,11 @@ class SpeedSearchAgent implements SpeedSearchAgentType {
         date: () => formatDateForLLM(),
         formattingAndCitations: () =>
           personaInstructions ? personaInstructions : formattingAndCitationsWeb,
+        personalizationDirectives: () =>
+          buildPersonalizationSection({
+            location: this.userLocation,
+            profile: this.userProfile,
+          }),
         context: RunnableLambda.from(
           async (
             input: BasicChainInput,
@@ -326,7 +357,7 @@ class SpeedSearchAgent implements SpeedSearchAgentType {
               throw new Error('Request cancelled by user');
             }
 
-            const processedHistory = formatChatHistoryAsString(
+            const processedHistory = this.formatHistoryWithLocation(
               input.chat_history,
             );
 
@@ -347,6 +378,9 @@ class SpeedSearchAgent implements SpeedSearchAgentType {
                   chat_history: processedHistory,
                   query,
                   date,
+                  ...(this.userLocation
+                    ? { user_location: this.userLocation }
+                    : {}),
                 },
                 { signal: options?.signal, ...getLangfuseCallbacks() },
               );
@@ -533,7 +567,11 @@ ${docs[index].metadata?.url.toLowerCase().includes('file') ? '' : '\n<url>' + do
     signal: AbortSignal,
     personaInstructions?: string,
     focusMode?: string,
+    personalization?: PersonalizationContext,
   ) {
+    this.userLocation = personalization?.location;
+    this.userProfile = personalization?.profile;
+
     const emitter = new eventEmitter();
 
     const answeringChain = await this.createAnsweringChain(

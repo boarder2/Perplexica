@@ -27,6 +27,13 @@ const Chat = ({
   setSystemPromptIds,
   onThinkBoxToggle,
   gatheringSources = [],
+  sendLocation,
+  setSendLocation,
+  sendPersonalization,
+  setSendPersonalization,
+  personalizationLocation,
+  personalizationAbout,
+  refreshPersonalization,
 }: {
   messages: Message[];
   sendMessage: (
@@ -82,6 +89,13 @@ const Chat = ({
     searchQuery: string;
     sources: Document[];
   }>;
+  sendLocation: boolean;
+  setSendLocation: (value: boolean) => void;
+  sendPersonalization: boolean;
+  setSendPersonalization: (value: boolean) => void;
+  personalizationLocation?: string;
+  personalizationAbout?: string;
+  refreshPersonalization?: () => void;
 }) => {
   const [isAtBottom, setIsAtBottom] = useState(true);
   const [manuallyScrolledUp, setManuallyScrolledUp] = useState(false);
@@ -311,6 +325,13 @@ const Chat = ({
           onCancel={handleCancel}
           systemPromptIds={systemPromptIds}
           setSystemPromptIds={setSystemPromptIds}
+          sendLocation={sendLocation}
+          setSendLocation={setSendLocation}
+          sendPersonalization={sendPersonalization}
+          setSendPersonalization={setSendPersonalization}
+          personalizationLocation={personalizationLocation}
+          personalizationAbout={personalizationAbout}
+          refreshPersonalization={refreshPersonalization}
         />
       </div>
       <div ref={messageEnd} className="h-0" />

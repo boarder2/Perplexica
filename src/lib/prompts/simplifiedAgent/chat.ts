@@ -6,8 +6,16 @@ import { formattingChat } from '@/lib/prompts/templates';
  */
 export function buildChatPrompt(
   personaInstructions: string,
+  personalizationSection: string,
   date: Date = new Date(),
 ): string {
+  const personaBlock = personaInstructions
+    ? personaInstructions
+    : formattingChat;
+  const personalizationBlock = personalizationSection
+    ? `\n${personalizationSection}`
+    : '';
+
   return `# AI Chat Assistant
 
 You are a conversational AI assistant designed for creative and engaging dialogue. Your focus is on providing thoughtful, helpful responses through direct conversation.
@@ -39,7 +47,7 @@ You are a conversational AI assistant designed for creative and engaging dialogu
 - Use proper markdown formatting for clarity
 - Structure responses logically
 
-${personaInstructions ? personaInstructions : formattingChat}
+${personaBlock}${personalizationBlock}
 
 ## Current Context
 - Today's Date: ${formatDateForLLM(date)}

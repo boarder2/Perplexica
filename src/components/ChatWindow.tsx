@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { updateToolCallMarkup } from '@/lib/utils/toolCallMarkup';
 import { Document } from '@langchain/core/documents';
 import Navbar from './Navbar';
@@ -30,6 +30,8 @@ export type ModelStats = {
   modelNameSystem?: string;
   usageChat?: TokenUsage;
   usageSystem?: TokenUsage;
+  usedLocation?: boolean;
+  usedPersonalization?: boolean;
 };
 
 export type AgentActionEvent = {
@@ -57,6 +59,8 @@ export type Message = {
     subMessage?: string;
   };
   expandedThinkBoxes?: Set<string>;
+  usedLocation?: boolean;
+  usedPersonalization?: boolean;
 };
 
 export interface File {
@@ -78,6 +82,9 @@ interface SystemModelProvider {
   name: string;
   provider: string;
 }
+
+const SEND_LOCATION_KEY = 'personalization.sendLocationEnabled';
+const SEND_PROFILE_KEY = 'personalization.sendProfileEnabled';
 
 const checkConfig = async (
   setChatModelProvider: (provider: ChatModelProvider) => void,
@@ -361,6 +368,84 @@ const ChatWindow = ({ id }: { id?: string }) => {
     }>
   >([]);
 
+  const [sendLocation, setSendLocationState] = useState(false);
+  const [sendPersonalization, setSendPersonalizationState] = useState(false);
+  const [personalizationLocation, setPersonalizationLocation] = useState('');
+  const [personalizationAbout, setPersonalizationAbout] = useState('');
+
+  const setSendLocation = useCallback(
+    (value: boolean) => {
+      setSendLocationState(value);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(SEND_LOCATION_KEY, value.toString());
+      }
+    },
+    [setSendLocationState],
+  );
+
+  const setSendPersonalization = useCallback(
+    (value: boolean) => {
+      setSendPersonalizationState(value);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(SEND_PROFILE_KEY, value.toString());
+      }
+    },
+    [setSendPersonalizationState],
+  );
+
+  const refreshPersonalization = useCallback(() => {
+    if (typeof window === 'undefined') return;
+    const savedLocation =
+      localStorage.getItem('personalization.location') || '';
+    const savedAbout = localStorage.getItem('personalization.about') || '';
+    setPersonalizationLocation(savedLocation);
+    setPersonalizationAbout(savedAbout);
+  }, []);
+
+  useEffect(() => {
+    refreshPersonalization();
+    if (typeof window === 'undefined') return;
+
+    const handleStorage = () => refreshPersonalization();
+    const handleFocus = () => refreshPersonalization();
+    const handleCustom: EventListener = () => refreshPersonalization();
+
+    window.addEventListener('storage', handleStorage);
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('personalization-update', handleCustom);
+
+    return () => {
+      window.removeEventListener('storage', handleStorage);
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('personalization-update', handleCustom);
+    };
+  }, [refreshPersonalization]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const storedSendLocation = localStorage.getItem(SEND_LOCATION_KEY);
+    const storedSendProfile = localStorage.getItem(SEND_PROFILE_KEY);
+
+    if (storedSendLocation !== null) {
+      setSendLocation(storedSendLocation === 'true');
+    }
+    if (storedSendProfile !== null) {
+      setSendPersonalization(storedSendProfile === 'true');
+    }
+  }, [setSendLocation, setSendPersonalization]);
+
+  useEffect(() => {
+    if (personalizationLocation.trim() === '' && sendLocation) {
+      setSendLocation(false);
+    }
+  }, [personalizationLocation, sendLocation, setSendLocation]);
+
+  useEffect(() => {
+    if (personalizationAbout.trim() === '' && sendPersonalization) {
+      setSendPersonalization(false);
+    }
+  }, [personalizationAbout, sendPersonalization, setSendPersonalization]);
+
   useEffect(() => {
     const savedOptimizationMode = localStorage.getItem('optimizationMode');
 
@@ -419,6 +504,9 @@ const ChatWindow = ({ id }: { id?: string }) => {
       editMode?: boolean;
     },
   ) => {
+    const userLocation = sendLocation ? personalizationLocation : '';
+    const userProfile = sendPersonalization ? personalizationAbout : '';
+
     setScrollTrigger((x) => (x === 0 ? -1 : 0));
     // Special case: If we're just updating an existing message with suggestions
     if (options?.suggestions && options.messageId) {
@@ -690,14 +778,39 @@ const ChatWindow = ({ id }: { id?: string }) => {
         setMessages((prev) =>
           prev.map((message) => {
             if (message.messageId === data.messageId) {
+              const usedLocationFlag =
+                typeof data.usedLocation === 'boolean'
+                  ? data.usedLocation
+                  : undefined;
+              const usedPersonalizationFlag =
+                typeof data.usedPersonalization === 'boolean'
+                  ? data.usedPersonalization
+                  : undefined;
+              const mergedStats = data.modelStats
+                ? {
+                    ...data.modelStats,
+                    ...(usedLocationFlag !== undefined
+                      ? { usedLocation: usedLocationFlag }
+                      : {}),
+                    ...(usedPersonalizationFlag !== undefined
+                      ? { usedPersonalization: usedPersonalizationFlag }
+                      : {}),
+                  }
+                : undefined;
               return {
                 ...message,
                 content: recievedMessage, // Use the complete received message
                 // Include model stats if available, otherwise null
-                modelStats: data.modelStats || null,
+                modelStats: mergedStats || null,
                 // Make sure the searchQuery is preserved (if available in the message data)
                 searchQuery: message.searchQuery || data.searchQuery,
                 searchUrl: message.searchUrl || data.searchUrl,
+                ...(usedLocationFlag !== undefined
+                  ? { usedLocation: usedLocationFlag }
+                  : {}),
+                ...(usedPersonalizationFlag !== undefined
+                  ? { usedPersonalization: usedPersonalizationFlag }
+                  : {}),
               };
             }
             return message;
@@ -759,43 +872,52 @@ const ChatWindow = ({ id }: { id?: string }) => {
       localStorage.getItem('systemModelProvider') || modelProvider;
     const systemModelName = localStorage.getItem('systemModel') || modelName;
 
+    const payload: Record<string, any> = {
+      content: message,
+      message: {
+        messageId: messageId,
+        chatId: chatId!,
+        content: message,
+      },
+      chatId: chatId!,
+      files: fileIds,
+      focusMode: focusMode,
+      optimizationMode: currentOptimizationMode,
+      history: messageChatHistory,
+      chatModel: {
+        name: modelName,
+        provider: modelProvider,
+        ...(chatModelProvider.provider === 'ollama' && {
+          ollamaContextWindow: parseInt(ollamaContextWindow),
+        }),
+      },
+      systemModel: {
+        name: systemModelName,
+        provider: systemModelProvider,
+        ...(systemModelProvider === 'ollama' && {
+          ollamaContextWindow: parseInt(ollamaContextWindow),
+        }),
+      },
+      embeddingModel: {
+        name: embeddingModelProvider.name,
+        provider: embeddingModelProvider.provider,
+      },
+      selectedSystemPromptIds: systemPromptIds || [],
+    };
+
+    if (userLocation) {
+      payload.userLocation = userLocation;
+    }
+    if (userProfile) {
+      payload.userProfile = userProfile;
+    }
+
     const res = await fetch('/api/chat', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        content: message,
-        message: {
-          messageId: messageId,
-          chatId: chatId!,
-          content: message,
-        },
-        chatId: chatId!,
-        files: fileIds,
-        focusMode: focusMode,
-        optimizationMode: currentOptimizationMode,
-        history: messageChatHistory,
-        chatModel: {
-          name: modelName,
-          provider: modelProvider,
-          ...(chatModelProvider.provider === 'ollama' && {
-            ollamaContextWindow: parseInt(ollamaContextWindow),
-          }),
-        },
-        systemModel: {
-          name: systemModelName,
-          provider: systemModelProvider,
-          ...(systemModelProvider === 'ollama' && {
-            ollamaContextWindow: parseInt(ollamaContextWindow),
-          }),
-        },
-        embeddingModel: {
-          name: embeddingModelProvider.name,
-          provider: embeddingModelProvider.provider,
-        },
-        selectedSystemPromptIds: systemPromptIds || [],
-      }),
+      body: JSON.stringify(payload),
     });
 
     if (!res.body) throw new Error('No response body');
@@ -958,6 +1080,13 @@ const ChatWindow = ({ id }: { id?: string }) => {
               setSystemPromptIds={setSystemPromptIds}
               onThinkBoxToggle={handleThinkBoxToggle}
               gatheringSources={gatheringSources}
+              sendLocation={sendLocation}
+              setSendLocation={setSendLocation}
+              sendPersonalization={sendPersonalization}
+              setSendPersonalization={setSendPersonalization}
+              personalizationLocation={personalizationLocation}
+              personalizationAbout={personalizationAbout}
+              refreshPersonalization={refreshPersonalization}
             />
           </>
         ) : (
@@ -973,6 +1102,13 @@ const ChatWindow = ({ id }: { id?: string }) => {
             setFileIds={setFileIds}
             files={files}
             setFiles={setFiles}
+            sendLocation={sendLocation}
+            setSendLocation={setSendLocation}
+            sendPersonalization={sendPersonalization}
+            setSendPersonalization={setSendPersonalization}
+            personalizationLocation={personalizationLocation}
+            personalizationAbout={personalizationAbout}
+            refreshPersonalization={refreshPersonalization}
           />
         )}
       </div>

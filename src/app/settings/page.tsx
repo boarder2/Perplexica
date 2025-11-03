@@ -1,5 +1,4 @@
 'use client';
-
 import {
   Settings as SettingsIcon,
   ArrowLeft,
@@ -241,6 +240,8 @@ export default function SettingsPage() {
   const [measureUnit, setMeasureUnit] = useState<'Imperial' | 'Metric'>(
     'Metric',
   );
+  const [personalizationLocation, setPersonalizationLocation] = useState('');
+  const [personalizationAbout, setPersonalizationAbout] = useState('');
   const [savingStates, setSavingStates] = useState<Record<string, boolean>>({});
   const [contextWindowSize, setContextWindowSize] = useState(2048);
   const [isCustomContextWindow, setIsCustomContextWindow] = useState(false);
@@ -371,6 +372,12 @@ export default function SettingsPage() {
       setMeasureUnit(
         localStorage.getItem('measureUnit')! as 'Imperial' | 'Metric',
       );
+
+      const storedLocation =
+        localStorage.getItem('personalization.location') || '';
+      const storedAbout = localStorage.getItem('personalization.about') || '';
+      setPersonalizationLocation(storedLocation);
+      setPersonalizationAbout(storedAbout);
 
       setIsLoading(false);
     };
@@ -671,6 +678,35 @@ export default function SettingsPage() {
 
   const saveSearchSetting = (key: string, value: string) => {
     localStorage.setItem(key, value);
+  };
+
+  const dispatchPersonalizationEvent = () => {
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('personalization-update'));
+    }
+  };
+
+  const handlePersonalizationChange = (
+    key: 'personalization.location' | 'personalization.about',
+    setter: (value: string) => void,
+    rawValue: string,
+  ) => {
+    setter(rawValue);
+    if (rawValue.trim()) {
+      localStorage.setItem(key, rawValue);
+    } else {
+      localStorage.removeItem(key);
+    }
+    dispatchPersonalizationEvent();
+  };
+
+  const handlePersonalizationClear = (
+    key: 'personalization.location' | 'personalization.about',
+    setter: (value: string) => void,
+  ) => {
+    setter('');
+    localStorage.removeItem(key);
+    dispatchPersonalizationEvent();
   };
 
   const handleModelVisibilityToggle = async (
@@ -999,6 +1035,59 @@ export default function SettingsPage() {
                 </div>
               </div>
             </SettingsSection>
+
+            <div id="personalization">
+              <SettingsSection title="Personalization">
+                <p className="text-xs text-fg/60">
+                  Saved locally in your browser. You can choose to send this
+                  info per message.
+                </p>
+                <div className="flex flex-col space-y-4">
+                  <div className="flex flex-col space-y-2">
+                    <label
+                      className="text-sm font-medium"
+                      htmlFor="personalization-location"
+                    >
+                      Location
+                    </label>
+                    <InputComponent
+                      id="personalization-location"
+                      type="text"
+                      value={personalizationLocation}
+                      placeholder="Seattle, WA or Greater Chicago Area"
+                      onChange={(e) =>
+                        handlePersonalizationChange(
+                          'personalization.location',
+                          setPersonalizationLocation,
+                          e.target.value,
+                        )
+                      }
+                    />
+                  </div>
+
+                  <div className="flex flex-col space-y-2">
+                    <label
+                      className="text-sm font-medium"
+                      htmlFor="personalization-about"
+                    >
+                      About Me
+                    </label>
+                    <TextareaComponent
+                      id="personalization-about"
+                      value={personalizationAbout}
+                      placeholder="I am a YouTube travel vlogger who enjoys playing video games in my spare time. I have a wife, two kids, and one dog."
+                      onChange={(e) =>
+                        handlePersonalizationChange(
+                          'personalization.about',
+                          setPersonalizationAbout,
+                          e.target.value,
+                        )
+                      }
+                    />
+                  </div>
+                </div>
+              </SettingsSection>
+            </div>
 
             {/* System Prompts removed */}
 

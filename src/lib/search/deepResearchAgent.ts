@@ -31,6 +31,10 @@ import {
   extractWebFactsAndQuotes,
 } from '../utils/extractWebFacts';
 import { invokeStructuredOutputWithUsage } from '../utils/structuredOutputWithUsage';
+import {
+  buildPersonalizationSection,
+  type PersonalizationInput,
+} from '../utils/personalization';
 
 /**
  * DeepResearchAgent — phased orchestrator with budgets, cancellation, and progress streaming.
@@ -86,9 +90,11 @@ export class DeepResearchAgent {
   } = {};
   private query: string = '';
   // Track chat history and re-planning guidance between passes
-  private chatHistory: BaseMessage[] | any[] = [];
+  private chatHistory: BaseMessage[] = [];
   private replanGuidance: string | null = null;
   private planPass: number = 0;
+  private personalizationContext: PersonalizationInput | undefined;
+  private personalizationSection: string;
 
   constructor(
     private llm: BaseChatModel,
@@ -100,13 +106,44 @@ export class DeepResearchAgent {
     private chatId: string,
     private messageId?: string,
     private retrievalSignal?: AbortSignal,
+    private userLocation?: string,
+    private userProfile?: string,
   ) {
     // Observe cancellation
     this.signal.addEventListener('abort', () => {
       this.aborted = true;
     });
+
+    const context: PersonalizationInput = {};
+    if (this.userLocation?.trim()) {
+      context.location = this.userLocation.trim();
+    }
+    if (this.userProfile?.trim()) {
+      context.profile = this.userProfile.trim();
+    }
+    this.personalizationContext = Object.keys(context).length
+      ? context
+      : undefined;
+    this.personalizationSection = this.personalizationContext
+      ? buildPersonalizationSection(this.personalizationContext)
+      : '';
   }
 
+  private applyLocationBias(query: string): string {
+    const location = this.personalizationContext?.location;
+    if (!location) {
+      return query;
+    }
+
+    const normalizedQuery = query.toLowerCase();
+    const normalizedLocation = location.toLowerCase();
+
+    if (normalizedQuery.includes(normalizedLocation)) {
+      return query;
+    }
+
+    return `${query} ${location}`;
+  }
   async searchAndAnswer(
     query: string,
     history: any[] = [],
@@ -114,7 +151,10 @@ export class DeepResearchAgent {
   ): Promise<void> {
     try {
       this.query = query;
-      this.chatHistory = history as any;
+      const baseHistory = Array.isArray(history)
+        ? (history as BaseMessage[])
+        : [];
+      this.chatHistory = baseHistory;
 
       // Write this on a background thread after a delay otherwise the emitter won't be listening
       setTimeout(() => {
@@ -127,8 +167,11 @@ export class DeepResearchAgent {
           this.systemLlm,
           query,
           this.signal,
-          history as any,
+          this.chatHistory,
           (usage) => this.addPhaseUsage('Plan', usage, 'system'),
+          this.personalizationContext
+            ? { personalization: this.personalizationContext }
+            : undefined,
         );
         this.countLLMTurns();
 
@@ -158,13 +201,13 @@ export class DeepResearchAgent {
         do {
           // Phase: Plan
           await this.runPhase('Plan', async () => {
-            await this.planPhase(query, history);
+            await this.planPhase(query);
           });
 
           // Phase: Search
           if (!this.shouldJumpToSynthesis()) {
             await this.runPhase('Search', async () => {
-              await this.searchPhase(history);
+              await this.searchPhase();
             });
           }
 
@@ -452,7 +495,7 @@ export class DeepResearchAgent {
   //   } as SessionManifest);
   // }
 
-  private async planPhase(query: string, history: any[]) {
+  private async planPhase(query: string) {
     this.ensureNotAborted();
     if (this.shouldJumpToSynthesis()) return;
 
@@ -464,8 +507,11 @@ export class DeepResearchAgent {
         this.systemLlm,
         query,
         this.signal,
-        history as any,
+        this.chatHistory,
         (usage) => this.addPhaseUsage('Plan', usage, 'system'),
+        this.personalizationContext
+          ? { personalization: this.personalizationContext }
+          : undefined,
       );
       const candidate = (res?.searchQuery || '').trim();
       if (candidate && candidate.toLowerCase() !== 'not_needed') {
@@ -516,9 +562,13 @@ export class DeepResearchAgent {
       query,
       guidanceAppendix,
       this.signal,
-      history as any,
+      this.chatHistory,
       (usage) => this.addPhaseUsage('Plan', usage, 'system'),
-      { webContext, date: formatDateForLLM(new Date()) },
+      {
+        webContext,
+        date: formatDateForLLM(new Date()),
+        personalization: this.personalizationContext,
+      },
     );
     this.emitProgress(
       'Plan',
@@ -529,7 +579,7 @@ export class DeepResearchAgent {
     this.planPass += 1;
   }
 
-  private async searchPhase(history: BaseMessage[]) {
+  private async searchPhase() {
     this.ensureNotAborted();
     const subqs = this.state.plan?.subquestions || [];
     if (!subqs.length) return;
@@ -540,6 +590,7 @@ export class DeepResearchAgent {
     for (let i = 0; i < subqs.length; i++) {
       if (this.abortedOrTimedOut()) break;
       const sq = subqs[i];
+      const localizedSubquery = this.applyLocationBias(sq);
 
       this.emitProgress(
         'Search',
@@ -581,7 +632,8 @@ export class DeepResearchAgent {
           // We are NOT YET filling out the facts/quotes structure. That will only happen if necessary.
           let rankedCandidates: string[] = [];
           try {
-            const queryVector = await this.embeddings.embedQuery(sq);
+            const queryVector =
+              await this.embeddings.embedQuery(localizedSubquery);
             const webContent = await getWebContent(
               result.url,
               100000,
@@ -646,7 +698,7 @@ export class DeepResearchAgent {
           // This is a potentially costly LLM operation so we do it only for the top few candidates
           const extracted = await extractContentFactsAndQuotes(
             rankedCandidates.join('\n\n'),
-            sq,
+            localizedSubquery,
             this.systemLlm,
             this.retrievalSignal || this.signal,
             (usage) => this.addPhaseUsage('Search', usage, 'system'),
@@ -760,6 +812,7 @@ export class DeepResearchAgent {
 
       const subqueryResult = pendingSubqueries[i];
       const subquery = subqueryResult.subquestion;
+      const localizedSubquery = this.applyLocationBias(subquery);
       console.log(`Enhance phase - evaluating subquery: "${subquery}"`);
 
       this.emitProgress(
@@ -783,19 +836,21 @@ export class DeepResearchAgent {
       }
 
       try {
+        const evaluationSystemPromptParts = [
+          'You are evaluating whether a subquery can be adequately answered using the provided content.',
+          'Consider the context of the main user query and whether the content provides sufficient information.',
+          'Be conservative: if important details are missing or the content is too sparse, answer no.',
+          'Respond with JSON containing "canAnswer" (yes/no) and optionally "reason".',
+        ];
+        if (this.personalizationSection) {
+          evaluationSystemPromptParts.push(this.personalizationSection);
+        }
         const messages = [
-          new SystemMessage(
-            [
-              'You are evaluating whether a subquery can be adequately answered using the provided content.',
-              'Consider the context of the main user query and whether the content provides sufficient information.',
-              'Be conservative: if important details are missing or the content is too sparse, answer no.',
-              'Respond with JSON containing "canAnswer" (yes/no) and optionally "reason".',
-            ].join(' '),
-          ),
+          new SystemMessage(evaluationSystemPromptParts.join('\n\n')),
           new HumanMessage(
             [
               `Main user query: ${this.query}`,
-              `Subquery to evaluate: ${subquery}`,
+              `Subquery to evaluate: ${localizedSubquery}`,
               `Available content:\n${contentSummary}`,
             ].join('\n\n'),
           ),
@@ -862,6 +917,7 @@ export class DeepResearchAgent {
 
   private async enhanceSubqueryWithFacts(subqueryResult: SubqueryResult) {
     const subquery = subqueryResult.subquestion;
+    const localizedSubquery = this.applyLocationBias(subquery);
     const limit = pLimit(2); // Limit concurrent extractions
 
     // Extract facts and quotes from each candidate source
@@ -873,7 +929,7 @@ export class DeepResearchAgent {
           try {
             const extracted = await extractWebFactsAndQuotes(
               candidate.url,
-              subquery,
+              localizedSubquery,
               this.systemLlm,
               this.retrievalSignal || this.signal,
               (usage) => this.addPhaseUsage('Enhance', usage, 'system'),
@@ -986,14 +1042,16 @@ export class DeepResearchAgent {
     });
 
     try {
+      const sufficiencySystemPromptParts = [
+        'You are a cautious research supervisor. Decide if there is enough high-quality, relevant evidence to answer the user question now.',
+        'Consider the planning criteria and notes. Prefer recall and precision over verbosity. Be conservative: if major gaps remain, answer no.',
+        "Respond with JSON containing only { 'sufficient': 'yes' | 'no' }.",
+      ];
+      if (this.personalizationSection) {
+        sufficiencySystemPromptParts.push(this.personalizationSection);
+      }
       const messages = [
-        new SystemMessage(
-          [
-            'You are a cautious research supervisor. Decide if there is enough high-quality, relevant evidence to answer the user question now.',
-            'Consider the planning criteria and notes. Prefer recall and precision over verbosity. Be conservative: if major gaps remain, answer no.',
-            "Respond with JSON containing only { 'sufficient': 'yes' | 'no' }.",
-          ].join(' '),
-        ),
+        new SystemMessage(sufficiencySystemPromptParts.join('\n\n')),
         new HumanMessage(
           [
             `User question: ${this.query}`,
@@ -1051,6 +1109,16 @@ export class DeepResearchAgent {
       }
       if (plan.notes?.length) {
         guidance.push(`Planner notes to respect: ${plan.notes.join('; ')}`);
+      }
+      if (this.personalizationContext?.location) {
+        guidance.push(
+          `When it clarifies the user's intent, prefer sources and data relevant to ${this.personalizationContext.location}. If the user later specifies a different locale, follow their latest instruction.`,
+        );
+      }
+      if (this.personalizationContext?.profile) {
+        guidance.push(
+          `Consider the stored user context when selecting angles or explanations, but drop it if it does not materially improve answer quality.`,
+        );
       }
       if (removedCount > 0) {
         guidance.push(
@@ -1111,6 +1179,7 @@ export class DeepResearchAgent {
       formattingAndCitations: this.personaInstructions
         ? this.personaInstructions
         : formattingAndCitationsScholarly.content,
+      personalizationDirectives: this.personalizationSection,
       conversationHistory: '',
       exploredSubquestions: (this.state.plan?.subquestions || []).join('\n'),
       // Cap context to ~12,000 characters to keep within LLM input limits

@@ -7,6 +7,7 @@ import Focus from './MessageInputActions/Focus';
 import ModelConfigurator from './MessageInputActions/ModelConfigurator';
 import Optimization from './MessageInputActions/Optimization';
 import SystemPromptSelector from './MessageInputActions/SystemPromptSelector'; // Import new component
+import PersonalizationPicker from './PersonalizationPicker';
 
 const MessageInput = ({
   sendMessage,
@@ -23,6 +24,13 @@ const MessageInput = ({
   onCancel,
   systemPromptIds,
   setSystemPromptIds,
+  sendLocation,
+  setSendLocation,
+  sendPersonalization,
+  setSendPersonalization,
+  personalizationLocation,
+  personalizationAbout,
+  refreshPersonalization,
 }: {
   sendMessage: (
     message: string,
@@ -44,6 +52,13 @@ const MessageInput = ({
   onCancel?: () => void;
   systemPromptIds: string[];
   setSystemPromptIds: (ids: string[]) => void;
+  sendLocation: boolean;
+  setSendLocation: (value: boolean) => void;
+  sendPersonalization: boolean;
+  setSendPersonalization: (value: boolean) => void;
+  personalizationLocation?: string;
+  personalizationAbout?: string;
+  refreshPersonalization?: () => void;
 }) => {
   const [message, setMessage] = useState('');
 
@@ -155,10 +170,21 @@ const MessageInput = ({
             />
           </div>
           <div className="flex flex-row items-center space-x-2">
-            <ModelConfigurator />
+            <ModelConfigurator showModelName={false} />
             <SystemPromptSelector
               selectedPromptIds={systemPromptIds}
               onSelectedPromptIdsChange={setSystemPromptIds}
+            />
+            <PersonalizationPicker
+              hasLocation={personalizationLocation?.trim() !== ''}
+              hasProfile={personalizationAbout?.trim() !== ''}
+              sendLocation={sendLocation}
+              setSendLocation={setSendLocation}
+              sendPersonalization={sendPersonalization}
+              setSendPersonalization={setSendPersonalization}
+              locationPreview={personalizationLocation}
+              profilePreview={personalizationAbout}
+              onRefresh={refreshPersonalization}
             />
             {loading ? (
               <button

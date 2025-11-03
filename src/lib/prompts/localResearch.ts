@@ -8,6 +8,9 @@ If you lack sufficient information to answer, ask the user for more details or s
 Note: If persona instructions are provided, they override any default formatting/citation rules.
 
 
+{personalizationDirectives}
+
+
 <context>
 {context}
 </context>

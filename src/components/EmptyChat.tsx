@@ -18,6 +18,13 @@ const EmptyChat = ({
   setFileIds,
   files,
   setFiles,
+  sendLocation,
+  setSendLocation,
+  sendPersonalization,
+  setSendPersonalization,
+  personalizationLocation,
+  personalizationAbout,
+  refreshPersonalization,
 }: {
   sendMessage: (message: string) => void;
   focusMode: string;
@@ -30,6 +37,13 @@ const EmptyChat = ({
   setFileIds: (fileIds: string[]) => void;
   files: File[];
   setFiles: (files: File[]) => void;
+  sendLocation: boolean;
+  setSendLocation: (value: boolean) => void;
+  sendPersonalization: boolean;
+  setSendPersonalization: (value: boolean) => void;
+  personalizationLocation?: string;
+  personalizationAbout?: string;
+  refreshPersonalization?: () => void;
 }) => {
   const [showWeatherWidget, setShowWeatherWidget] = useState(true);
   const [showNewsWidget, setShowNewsWidget] = useState(true);
@@ -62,6 +76,13 @@ const EmptyChat = ({
             systemPromptIds={systemPromptIds}
             setSystemPromptIds={setSystemPromptIds}
             setFiles={setFiles}
+            sendLocation={sendLocation}
+            setSendLocation={setSendLocation}
+            sendPersonalization={sendPersonalization}
+            setSendPersonalization={setSendPersonalization}
+            personalizationLocation={personalizationLocation}
+            personalizationAbout={personalizationAbout}
+            refreshPersonalization={refreshPersonalization}
           />
         </div>
         <div className="flex flex-col w-full gap-4 mt-2 sm:flex-row sm:justify-center">

@@ -131,7 +131,7 @@ export default function ModelConfigurator({
     <>
       <button
         type="button"
-        className="p-2 group flex text-fg/50 rounded-xl hover:bg-surface-2 active:scale-95 transition duration-200 hover:text-fg"
+        className="p-1 group flex text-fg/50 rounded-xl hover:bg-surface-2 active:scale-95 transition duration-200 hover:text-fg"
         onClick={() => setOpen(true)}
         aria-label="Configure models"
       >
@@ -148,7 +148,7 @@ export default function ModelConfigurator({
             {mainButtonText}
           </span>
         )}
-        <ChevronDown size={16} className="transition-transform" />
+        {/* <ChevronDown size={16} className="transition-transform" /> */}
       </button>
 
       <Transition show={open} as={Fragment}>

@@ -7,6 +7,10 @@ import {
 import { invokeStructuredOutputWithUsage } from '@/lib/utils/structuredOutputWithUsage';
 import { removeThinkingBlocksFromMessages } from '@/lib/utils/contentUtils';
 import { formatDateForLLM } from '@/lib/utils';
+import {
+  buildPersonalizationSection,
+  type PersonalizationInput,
+} from '@/lib/utils/personalization';
 import { z } from 'zod';
 
 export type QueryOutput = {
@@ -32,12 +36,32 @@ export async function searchQueryTool(
   signal: AbortSignal,
   history: BaseMessage[] = [],
   onUsage?: (usageData: any) => void,
+  options?: { personalization?: PersonalizationInput },
 ): Promise<QueryOutput> {
+  const currentDate = formatDateForLLM(new Date());
+  const personalizationSection = options?.personalization
+    ? buildPersonalizationSection(options.personalization)
+    : '';
+  const systemPrompt = personalizationSection
+    ? `You generate a single concise web search query for the user's question based on the conversation context.
+
+Rules:
+- Return a brief, specific query suitable for web search
+- Include entities, dates, or site:example.com if appropriate
+- If a web search is not needed, set searchQuery to "not_needed"
+- Current date is ${currentDate}
+
+${personalizationSection}`
+    : `You generate a single concise web search query for the user's question based on the conversation context.
+
+Rules:
+- Return a brief, specific query suitable for web search
+- Include entities, dates, or site:example.com if appropriate
+- If a web search is not needed, set searchQuery to "not_needed"
+- Current date is ${currentDate}`;
   const messages = [
     ...removeThinkingBlocksFromMessages(history),
-    new SystemMessage(
-      `You generate a single concise web search query for the user's question based on the conversation context.\n\nRules:\n- Return a brief, specific query suitable for web search\n- Include entities, dates, or site:example.com if appropriate\n- If a web search is not needed, set searchQuery to "not_needed"\n- Current date is ${formatDateForLLM(new Date())}`,
-    ),
+    new SystemMessage(systemPrompt),
     new HumanMessage(`${query}`),
   ];
 

@@ -7,6 +7,10 @@ import {
 import { removeThinkingBlocksFromMessages } from '@/lib/utils/contentUtils';
 import { invokeStructuredOutputWithUsage } from '@/lib/utils/structuredOutputWithUsage';
 import { setTemperature } from '@/lib/utils/modelUtils';
+import {
+  buildPersonalizationSection,
+  type PersonalizationInput,
+} from '@/lib/utils/personalization';
 import z from 'zod';
 
 export type ClarificationEvaluatorOutput = {
@@ -85,9 +89,18 @@ export async function clarificationEvaluatorTool(
   signal: AbortSignal,
   history: BaseMessage[] = [],
   onUsage?: (usageData: any) => void,
+  options?: { personalization?: PersonalizationInput },
 ): Promise<ClarificationEvaluatorOutput> {
+  const personalizationSection = options?.personalization
+    ? buildPersonalizationSection(options.personalization)
+    : '';
+  const systemPrompt = personalizationSection
+    ? `${clarificationEvaluatorPrompt}
+
+${personalizationSection}`
+    : clarificationEvaluatorPrompt;
   const messages = [
-    new SystemMessage(clarificationEvaluatorPrompt),
+    new SystemMessage(systemPrompt),
     ...removeThinkingBlocksFromMessages(history).slice(-4), // Include last 2 exchanges for context
     new HumanMessage(`Evaluate this query: "${query}"`),
   ];

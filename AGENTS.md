@@ -42,7 +42,8 @@ The system works through these main steps:
   - `SimplifiedAgent` (LangGraph React Agent) — single, unified agent that uses tools to perform web search, local file search, URL summarization, and more. See `src/lib/search/simplifiedAgent.ts` with state in `src/lib/state/chatAgentState.ts` and prompts in `src/lib/prompts/simplifiedAgent/*`.
   - `SpeedSearch` — fast, non-agent pipeline used when optimization mode is `speed`. See `src/lib/search/speedSearch.ts`.
     - Tools used by the agent live in `src/lib/tools/agents` (e.g., `web_search`, `file_search`, `url_summarization`, `image_search`).
-  - `DeepResearchAgent` — advanced agent for deep research workflows with planning, iterative retrieval, extraction, and synthesis. See `src/lib/search/deepResearchAgent.ts`.
+  - `DeepResearchAgent` — advanced agent for deep research workflows with planning, iterative retrieval, extraction, and synthesis. See `src/lib/search/deepResearchAgent.ts`. Personalization data (location/about me) now feeds the clarification check, query planner, search query generator, and per-subquery retrieval so evidence gathering stays aligned with the user's locale and profile without leaking raw details to external tools.
+  - **Personalization context**: Location and About Me drafts live in localStorage and are forwarded as-is when the user enables the toggle. Downstream agents receive this context via `MetaSearchAgent` and adapt prompts without leaking About Me into external queries. Prompt templates render a dedicated `## Personalization` section with guardrails so guidance stays separate from persona formatting.
 
 #### Tool Call Lifecycle Events (UI Integration)
 
@@ -173,6 +174,7 @@ When working on this codebase, you might need to:
 - Create new prompt templates in `/src/lib/prompts`
 - Build new chains in `/src/lib/chains`
 - Implement new LangGraph agents in `/src/lib/agents`
+- Wire personalization context through pipelines (`MetaSearchAgent`, `speedSearch`, `simplifiedAgent`, `deepResearchAgent`) by passing `userLocation` / `userProfile` directly when toggled; location may guide external queries, About Me stays internal.
 
 Model usage routing principles:
 
@@ -188,6 +190,10 @@ Implementation notes (key files):
 - `/src/lib/search/simplifiedAgent.ts`: agent uses Chat LLM; exposes `systemLlm` to tools via config
 - Tools in `/src/lib/tools/agents/*`: now expect `config.configurable.systemLlm` for any internal LLM calls
 - `/src/lib/search/speedSearch.ts`: uses System LLM for search/summarization prep and Chat LLM for final answer
+- `/src/components/PersonalizationPicker.tsx` and `/src/components/ChatWindow.tsx`: manage per-message toggles for location/about-me, persisting the send-location/send-profile preferences in localStorage so they carry across chats and reloads; payloads send `userLocation` / `userProfile` only when toggled.
+- `/src/lib/search/deepResearchAgent.ts`: threads personalization context through clarification, planning, search, and synthesis prompts, and biases subquery web searches toward the stored location (when present) without exposing the raw details in outbound tool calls.
+- `/src/app/api/chat/route.ts` & `/src/app/api/search/route.ts`: forward personalization fields directly when toggled and propagate `usedLocation` / `usedPersonalization` flags to responses.
+- `/src/components/MessageActions/ModelInfo.tsx`: displays per-response personalization usage booleans from `modelStats`.
 
 ## AI Behavior Guidelines
 
@@ -202,6 +208,7 @@ Implementation notes (key files):
 - Use the established component structure and styling patterns
 - Always update documentation and comments to reflect code changes
 - Always update `AGENTS.md` to reflect relevant changes to AI guidelines. This file should **only** reflect the **current** state of the project and should not be used as a historical log.
+- When personalization is active, honor the guardrails: location may bias retrieval queries and tool usage; About Me is for tone/context only and must never be sent to external tools or responses verbatim.
 
 ## Code Style & Standards
 

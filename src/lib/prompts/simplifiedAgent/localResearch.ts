@@ -6,6 +6,7 @@ import { formattingAndCitationsLocal } from '@/lib/prompts/templates';
  */
 export function buildLocalResearchPrompt(
   personaInstructions: string,
+  personalizationSection: string,
   date: Date = new Date(),
 ): string {
   return `# Local Document Research Assistant
@@ -27,6 +28,7 @@ Your task is to provide answers that are:
 - Engaging and detailed: Read like a high-quality research analysis with relevant insights
 - Explanatory and Comprehensive: Explain findings in depth with analysis and clarifications
 
+${personalizationSection}
 ${personaInstructions ? personaInstructions : `\n${formattingAndCitationsLocal}`}
 
 # Research Strategy

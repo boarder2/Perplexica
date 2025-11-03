@@ -277,6 +277,8 @@ Your task is to provide answers that are:
 
 {formattingAndCitations}
 
+{personalizationDirectives}
+
 <context>
 {context}
 </context>

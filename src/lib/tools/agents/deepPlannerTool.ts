@@ -10,6 +10,10 @@ import { removeThinkingBlocksFromMessages } from '@/lib/utils/contentUtils';
 import { invokeStructuredOutputWithUsage } from '@/lib/utils/structuredOutputWithUsage';
 import z from 'zod';
 import { setTemperature } from '@/lib/utils/modelUtils';
+import {
+  buildPersonalizationSection,
+  type PersonalizationInput,
+} from '@/lib/utils/personalization';
 
 export type PlannerOutput = {
   subquestions: string[];
@@ -41,11 +45,24 @@ export async function deepPlannerTool(
   signal: AbortSignal,
   history: BaseMessage[] = [],
   onUsage?: (usageData: any) => void,
-  options?: { webContext?: string; date?: string },
+  options?: {
+    webContext?: string;
+    date?: string;
+    personalization?: PersonalizationInput;
+  },
 ): Promise<PlannerOutput> {
+  const personalizationSection = options?.personalization
+    ? buildPersonalizationSection(options.personalization)
+    : '';
+  const systemPrompt = personalizationSection
+    ? `${plannerPrompt}
+
+${personalizationSection}
+If location information is relevant, be sure to include it in each subquestion that needs it. Subquestions will be executed independently, so do not assume any shared context.`
+    : plannerPrompt;
   const messages = [
     ...removeThinkingBlocksFromMessages(history),
-    new SystemMessage(plannerPrompt),
+    new SystemMessage(systemPrompt),
     // Provide fresh web context (if available) to bias planning toward current events
     ...(options?.webContext
       ? [

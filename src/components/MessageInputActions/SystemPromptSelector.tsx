@@ -82,7 +82,7 @@ const SystemPromptSelector = ({
           <>
             <PopoverButton
               className={cn(
-                'flex items-center gap-1 rounded-lg text-sm transition-colors duration-150 ease-in-out focus:outline-none focus-visible:ring-2',
+                'flex items-center gap-1 rounded-lg text-sm transition-colors duration-150 ease-in-out focus:outline-none focus-visible:ring-2 p-1',
                 selectedCount > 0
                   ? 'text-accent hover:text-accent'
                   : 'text-fg/60 hover:text-fg/30',
@@ -91,7 +91,7 @@ const SystemPromptSelector = ({
             >
               <BookUser size={18} />
               {selectedCount > 0 ? <span> {selectedCount} </span> : null}
-              <ChevronDown size={16} className="opacity-60" />
+              {/* <ChevronDown size={16} className="opacity-60" /> */}
             </PopoverButton>
             <Transition
               as={Fragment}

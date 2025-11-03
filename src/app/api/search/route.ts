@@ -47,6 +47,8 @@ interface ChatRequestBody {
   history: Array<[string, string]>;
   stream?: boolean;
   selectedSystemPromptIds?: string[]; // legacy name; treated as persona prompt IDs
+  userLocation?: string;
+  userProfile?: string;
 }
 
 export const POST = async (req: Request) => {
@@ -181,7 +183,6 @@ export const POST = async (req: Request) => {
     const personaInstructions = await getPersonaInstructionsOnly(
       body.selectedSystemPromptIds || [],
     );
-
     const emitter = await searchHandler.searchAndAnswer(
       body.query,
       history,
@@ -194,6 +195,12 @@ export const POST = async (req: Request) => {
       signal,
       personaInstructions,
       body.focusMode,
+      undefined,
+      undefined,
+      {
+        location: body.userLocation,
+        profile: body.userProfile,
+      },
     );
 
     if (!body.stream) {

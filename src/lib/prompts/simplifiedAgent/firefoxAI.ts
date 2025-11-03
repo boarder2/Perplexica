@@ -5,6 +5,7 @@ import { formatDateForLLM } from '@/lib/utils';
  */
 export function buildFirefoxAIPrompt(
   personaInstructions: string,
+  personalizationSection: string,
   date: Date = new Date(),
 ): string {
   return `# AI Chat Assistant (Firefox AI Detected)
@@ -53,5 +54,6 @@ ${
     ? `\n## User Formatting and Persona Instructions\n- Give these instructions more weight than the system formatting instructions\n${personaInstructions}`
     : ''
 }
+${personalizationSection ? `\n\n${personalizationSection}` : ''}
 `;
 }

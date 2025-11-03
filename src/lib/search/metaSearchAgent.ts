@@ -21,8 +21,14 @@ export interface MetaSearchAgentType {
     focusMode?: string,
     messageId?: string,
     retrievalSignal?: AbortSignal,
+    personalization?: PersonalizationContext,
   ) => Promise<eventEmitter>;
 }
+
+export type PersonalizationContext = {
+  location?: string;
+  profile?: string;
+};
 
 interface Config {
   searchWeb: boolean;
@@ -59,6 +65,7 @@ class MetaSearchAgent implements MetaSearchAgentType {
     focusMode: string,
     messageId?: string,
     retrievalSignal?: AbortSignal,
+    personalization?: PersonalizationContext,
   ) {
     try {
       const agentSearch = new AgentSearch(
@@ -72,6 +79,7 @@ class MetaSearchAgent implements MetaSearchAgentType {
         chatId,
         messageId,
         retrievalSignal,
+        personalization,
       );
 
       // Execute the agent workflow
@@ -105,6 +113,7 @@ class MetaSearchAgent implements MetaSearchAgentType {
     focusMode?: string,
     messageId?: string,
     retrievalSignal?: AbortSignal,
+    personalization?: PersonalizationContext,
   ) {
     const emitter = new eventEmitter();
 
@@ -120,6 +129,7 @@ class MetaSearchAgent implements MetaSearchAgentType {
         signal,
         personaInstructions,
         focusMode,
+        personalization,
       );
     }
 
@@ -139,6 +149,7 @@ class MetaSearchAgent implements MetaSearchAgentType {
         'deepResearch',
         messageId || '',
         retrievalSignal || signal,
+        personalization,
       );
 
       return emitter;
@@ -159,6 +170,7 @@ class MetaSearchAgent implements MetaSearchAgentType {
       focusMode || 'webSearch',
       messageId || '',
       retrievalSignal || signal,
+      personalization,
     );
 
     return emitter;

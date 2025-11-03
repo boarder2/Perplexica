@@ -63,6 +63,8 @@ type Body = {
   systemModel?: SystemModel; // optional; defaults to chatModel
   embeddingModel: EmbeddingModel;
   selectedSystemPromptIds: string[]; // legacy name; treated as persona prompt IDs
+  userLocation?: string;
+  userProfile?: string;
 };
 
 type TokenUsage = {
@@ -78,6 +80,8 @@ type ModelStats = {
   modelNameSystem?: string;
   usageChat?: TokenUsage;
   usageSystem?: TokenUsage;
+  usedLocation?: boolean;
+  usedPersonalization?: boolean;
 };
 
 const handleEmitterEvents = async (
@@ -89,6 +93,8 @@ const handleEmitterEvents = async (
   startTime: number,
   userMessageId: string,
   abortController: AbortController,
+  usedLocation: boolean,
+  usedPersonalization: boolean,
 ) => {
   let recievedMessage = '';
   let sources: any[] = [];
@@ -222,14 +228,18 @@ const handleEmitterEvents = async (
   stream.on('stats', (data) => {
     const parsedData = JSON.parse(data);
     if (parsedData.type === 'modelStats') {
-      modelStats = parsedData.data;
+      modelStats = {
+        ...parsedData.data,
+        usedLocation,
+        usedPersonalization,
+      };
       // Forward stats to client for live updates
       try {
         writer.write(
           encoder.encode(
             JSON.stringify({
               type: 'stats',
-              data: parsedData.data,
+              data: modelStats,
               messageId: aiMessageId,
             }) + '\n',
           ),
@@ -250,6 +260,8 @@ const handleEmitterEvents = async (
     modelStats = {
       ...modelStats,
       responseTime: duration,
+      usedLocation,
+      usedPersonalization,
     };
 
     writer.write(
@@ -260,6 +272,8 @@ const handleEmitterEvents = async (
           modelStats: modelStats,
           searchQuery: searchQuery,
           searchUrl: searchUrl,
+          usedLocation,
+          usedPersonalization,
         }) + '\n',
       ),
     );
@@ -280,6 +294,8 @@ const handleEmitterEvents = async (
           ...(searchQuery && { searchQuery }),
           modelStats: modelStats,
           ...(searchUrl && { searchUrl }),
+          usedLocation,
+          usedPersonalization,
         }),
       })
       .execute();
@@ -501,7 +517,6 @@ export const POST = async (req: Request) => {
     const personaInstructionsContent = await getPersonaInstructionsOnly(
       selectedSystemPromptIds || [],
     );
-
     const responseStream = new TransformStream();
     const writer = responseStream.writable.getWriter();
     const encoder = new TextEncoder();
@@ -545,6 +560,10 @@ export const POST = async (req: Request) => {
       body.focusMode,
       message.messageId,
       retrievalController.signal,
+      {
+        location: body.userLocation,
+        profile: body.userProfile,
+      },
     );
 
     handleEmitterEvents(
@@ -556,6 +575,8 @@ export const POST = async (req: Request) => {
       startTime,
       message.messageId,
       abortController,
+      body.userLocation ? body.userLocation.length > 0 : false,
+      body.userProfile ? body.userProfile.length > 0 : false,
     );
 
     handleHistorySave(message, humanMessageId, body.focusMode, body.files);

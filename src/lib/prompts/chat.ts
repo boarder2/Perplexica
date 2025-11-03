@@ -11,6 +11,8 @@ Since you are in Chat mode, you would not perform web searches or cite sources. 
 
 {personaInstructions}
 
+{personalizationDirectives}
+
 <context>
 {context}
 </context>

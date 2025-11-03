@@ -28,6 +28,7 @@ import { formatDateForLLM } from '../utils';
 import { removeThinkingBlocksFromMessages } from '../utils/contentUtils';
 import { getModelName } from '../utils/modelUtils';
 import { CachedEmbeddings } from '../utils/cachedEmbeddings';
+import { buildPersonalizationSection } from '../utils/personalization';
 
 /**
  * Normalize usage metadata from different LLM providers
@@ -80,6 +81,8 @@ export class SimplifiedAgent {
   private currentToolNames: string[] = [];
   private messageId?: string;
   private retrievalSignal?: AbortSignal;
+  private userLocation?: string;
+  private userProfile?: string;
 
   constructor(
     chatLlm: BaseChatModel,
@@ -90,6 +93,8 @@ export class SimplifiedAgent {
     signal: AbortSignal,
     messageId?: string,
     retrievalSignal?: AbortSignal,
+    userLocation?: string,
+    userProfile?: string,
   ) {
     this.chatLlm = chatLlm;
     this.systemLlm = systemLlm;
@@ -99,6 +104,8 @@ export class SimplifiedAgent {
     this.signal = signal;
     this.messageId = messageId;
     this.retrievalSignal = retrievalSignal;
+    this.userLocation = userLocation;
+    this.userProfile = userProfile;
   }
 
   private emitResponse(text: string) {
@@ -203,31 +210,49 @@ export class SimplifiedAgent {
     firefoxAIDetected?: boolean,
   ): string {
     const personaInstructions = this.personaInstructions || '';
+    const personalizationSection = buildPersonalizationSection({
+      location: this.userLocation,
+      profile: this.userProfile,
+    });
 
     if (firefoxAIDetected) {
-      return buildFirefoxAIPrompt(personaInstructions, new Date());
+      return buildFirefoxAIPrompt(
+        personaInstructions,
+        personalizationSection,
+        new Date(),
+      );
     }
 
     // Create focus-mode-specific prompts
     switch (focusMode) {
       case 'chat':
-        return buildChatPrompt(personaInstructions, new Date());
+        return buildChatPrompt(
+          personaInstructions,
+          personalizationSection,
+          new Date(),
+        );
       case 'webSearch':
         return buildWebSearchPrompt(
           personaInstructions,
+          personalizationSection,
           fileIds,
           messagesCount ?? 0,
           query,
           new Date(),
         );
       case 'localResearch':
-        return buildLocalResearchPrompt(personaInstructions, new Date());
+        return buildLocalResearchPrompt(
+          personaInstructions,
+          personalizationSection,
+          new Date(),
+        );
       default:
         console.warn(
           `SimplifiedAgent: Unknown focus mode "${focusMode}", using webSearch prompt`,
         );
         return buildWebSearchPrompt(
           personaInstructions,
+          personalizationSection,
           fileIds,
           messagesCount ?? 0,
           query,
@@ -303,6 +328,8 @@ export class SimplifiedAgent {
           // Pass through message and retrieval controls for tools
           messageId: this.messageId,
           retrievalSignal: this.retrievalSignal,
+          userLocation: this.userLocation,
+          userProfile: this.userProfile,
         },
         recursionLimit: 75, // Allow sufficient iterations for tool use
         signal: this.retrievalSignal,
@@ -737,6 +764,10 @@ ${url ? `<url>${url}</url>` : ''}
             formattingAndCitations: this.personaInstructions
               ? this.personaInstructions
               : formattingAndCitationsWeb.content,
+            personalizationDirectives: buildPersonalizationSection({
+              location: this.userLocation,
+              profile: this.userProfile,
+            }),
             //conversationHistory: '', //TODO: Pass recent history
             context: docsString || 'No context documents available.',
             date: formatDateForLLM(new Date()),

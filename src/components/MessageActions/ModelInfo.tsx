@@ -165,6 +165,24 @@ const ModelInfoButton: React.FC<ModelInfoButtonProps> = ({ modelStats }) => {
                   </div>
                 </>
               )}
+
+              {modelStats?.usedLocation !== undefined && (
+                <>
+                  <div className="opacity-70">Used location</div>
+                  <div className="font-medium">
+                    {modelStats.usedLocation ? 'Yes' : 'No'}
+                  </div>
+                </>
+              )}
+
+              {modelStats?.usedPersonalization !== undefined && (
+                <>
+                  <div className="opacity-70">Used personalization</div>
+                  <div className="font-medium">
+                    {modelStats.usedPersonalization ? 'Yes' : 'No'}
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>

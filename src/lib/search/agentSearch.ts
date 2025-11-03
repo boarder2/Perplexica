@@ -5,6 +5,7 @@ import { EventEmitter } from 'events';
 import { SimplifiedAgent } from './simplifiedAgent';
 import DeepResearchAgent from './deepResearchAgent';
 import { CachedEmbeddings } from '../utils/cachedEmbeddings';
+import { PersonalizationContext } from './metaSearchAgent';
 
 /**
  * Agent Search class implementing LangGraph Supervisor pattern
@@ -28,6 +29,7 @@ export class AgentSearch {
     private chatId?: string,
     private messageId?: string,
     private retrievalSignal?: AbortSignal,
+    private personalization?: PersonalizationContext,
   ) {
     this.emitter = emitter;
     this.agentMode = agentMode;
@@ -42,6 +44,8 @@ export class AgentSearch {
       signal,
       this.messageId,
       this.retrievalSignal,
+      this.personalization?.location,
+      this.personalization?.profile,
     );
 
     // Initialize deep research agent lazily only if needed
@@ -56,6 +60,8 @@ export class AgentSearch {
         this.chatId || '',
         this.messageId || '',
         this.retrievalSignal || signal,
+        this.personalization?.location,
+        this.personalization?.profile,
       );
     }
   }

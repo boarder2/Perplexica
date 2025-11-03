@@ -6,6 +6,7 @@ import { formattingAndCitationsWeb } from '@/lib/prompts/templates';
  */
 export function buildWebSearchPrompt(
   personaInstructions: string,
+  personalizationSection: string,
   fileIds: string[] = [],
   messagesCount: number = 0,
   query?: string,
@@ -24,7 +25,7 @@ export function buildWebSearchPrompt(
       : "\n  - **ALWAYS perform at least one web search on the first turn, unless prior conversation history explicitly and completely answers the user's query.**\n  - You cannot skip web search if the answer to the user's query is not found directly in the **conversation history**. All other prior knowledge must be verified with up-to-date information.";
 
   const explicitUrlInstruction = hasExplicitUrls
-    ? `\n  - The user query contains explicit URL${uniqueUrls.length === 1 ? '' : 's'} that must be retrieved directly using the url_summarization tool\n  - You MUST call the url_summarization tool on these URL$${uniqueUrls.length === 1 ? '' : 's'} before providing an answer. Pass them exactly as provided (do not alter, trim, or expand them).\n  - Do NOT perform a generic web search on the first pass. Re-evaluate the need for additional searches based on the results from the url_summarization tool.`
+    ? `\n  - The user query contains explicit URL${uniqueUrls.length === 1 ? '' : 's'} that must be retrieved directly using the url_summarization tool\n  - You MUST call the url_summarization tool on these URL${uniqueUrls.length === 1 ? '' : 's'} before providing an answer. Pass them exactly as provided (do not alter, trim, or expand them).\n  - Do NOT perform a generic web search on the first pass. Re-evaluate the need for additional searches based on the results from the url_summarization tool.`
     : '';
 
   return `# Comprehensive Research Assistant
@@ -34,16 +35,22 @@ You are an advanced AI research assistant with access to comprehensive tools for
 ## Tool use
 
 - Use the available tools effectively to gather and process information
-- When using a tool, **always wait for a complete response from the tool before proceeding**
+- When using a tool, **always wait for the complete response before proceeding**
 
 ## Response Quality Standards
 
 Your task is to provide answers that are:
 - Informative and relevant: Thoroughly address the user's query using gathered information
-- Engaging and detailed: include extra details and insights
-- Explanatory and Comprehensive: Strive to explain the topic in depth, offering detailed analysis, insights, and clarifications wherever applicable
+- Engaging and detailed: Include extra details and insights
+- Explanatory and comprehensive: Explain the topic in depth with analysis and clarifications
 
-${personaInstructions ? personaInstructions : `\n${formattingAndCitationsWeb}`}
+${
+  personaInstructions
+    ? personaInstructions
+    : `
+${formattingAndCitationsWeb}`
+}
+${personalizationSection}
 
 # Research Strategy
 1. **Plan**: Determine the best research approach based on the user's query
