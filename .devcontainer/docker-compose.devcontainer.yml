@@ -1,0 +1,20 @@
+services:
+  app:
+    build:
+      context: .
+    volumes:
+      - backend-dbstore:/home/perplexica/data
+      - uploads:/home/perplexica/uploads
+      - deep_research:/home/perplexica/storage/deep_research
+      - ..:/workspaces/Perplexica:cached
+    environment:
+      - SEARXNG_API_URL=https://searxng.int.bit-shift.com
+      - DATA_DIR=/home/perplexica
+    cap_add:
+      - SYS_ADMIN
+    command: sleep infinity
+    
+volumes:
+  backend-dbstore:
+  uploads:
+  deep_research:

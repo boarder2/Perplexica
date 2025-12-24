@@ -1,0 +1,38 @@
+{
+  "name": "Perplexica",
+  "dockerComposeFile": [
+    "docker-compose.devcontainer.yml"
+  ],
+  "service": "app",
+  "workspaceFolder": "/workspaces/Perplexica",
+  "shutdownAction": "stopCompose",
+  "overrideCommand": false,
+  "remoteUser": "node",
+  "forwardPorts": [3000, 4000],
+  "portsAttributes": {
+    "3000": {
+      "label": "Perplexica (Next.js)"
+    },
+    "4000": {
+      "label": "SearXNG"
+    }
+  },
+  "postCreateCommand": "yarn install --frozen-lockfile --network-timeout 600000 && npx playwright install chromium || true",
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "editor.formatOnSave": true,
+        "eslint.validate": ["javascript", "javascriptreact", "typescript", "typescriptreact"],
+        "files.watcherExclude": {
+          "**/.next/**": true,
+          "**/node_modules/**": true
+        }
+      },
+      "extensions": [
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "bradlc.vscode-tailwindcss"
+      ]
+    }
+  }
+}
