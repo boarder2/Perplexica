@@ -9,8 +9,10 @@ RUN apt-get update \
     git \
     procps \
     python3 \
+    pipx \
     make \
     g++ \
+    sqlite3 \
   && rm -rf /var/lib/apt/lists/*
 
 # Enable Yarn via Corepack (ships with Node)
@@ -31,3 +33,6 @@ RUN mkdir -p \
 
 WORKDIR /workspaces/Perplexica
 USER node
+
+# Install uv (Python package manager) and spec-kit (CLI tool)
+# RUN pipx install uv && pipx ensurepath && /home/node/.local/bin/uv tool install specify-cli --from git+https://github.com/github/spec-kit.git
