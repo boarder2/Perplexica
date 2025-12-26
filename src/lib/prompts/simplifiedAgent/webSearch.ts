@@ -21,11 +21,11 @@ export function buildWebSearchPrompt(
   const alwaysSearchInstruction = hasExplicitUrls
     ? ''
     : messagesCount < 2
-      ? '\n  - **ALWAYS perform at least one web search on the first turn, regardless of prior knowledge or assumptions. Do not skip this.**'
-      : "\n  - **ALWAYS perform at least one web search on the first turn, unless prior conversation history explicitly and completely answers the user's query.**\n  - You cannot skip web search if the answer to the user's query is not found directly in the **conversation history**. All other prior knowledge must be verified with up-to-date information.";
+      ? '- **ALWAYS perform at least one web search on the first turn, regardless of prior knowledge or assumptions. Do not skip this.**'
+      : "- **ALWAYS perform at least one web search on the first turn, unless prior conversation history explicitly and completely answers the user's query.**\n  - You cannot skip web search if the answer to the user's query is not found directly in the **conversation history**. All other prior knowledge must be verified with up-to-date information.";
 
   const explicitUrlInstruction = hasExplicitUrls
-    ? `\n  - The user query contains explicit URL${uniqueUrls.length === 1 ? '' : 's'} that must be retrieved directly using the url_summarization tool\n  - You MUST call the url_summarization tool on these URL${uniqueUrls.length === 1 ? '' : 's'} before providing an answer. Pass them exactly as provided (do not alter, trim, or expand them).\n  - Do NOT perform a generic web search on the first pass. Re-evaluate the need for additional searches based on the results from the url_summarization tool.`
+    ? `- The user query contains explicit URL${uniqueUrls.length === 1 ? '' : 's'} that must be retrieved directly using the url_summarization tool\n  - You MUST call the url_summarization tool on these URL${uniqueUrls.length === 1 ? '' : 's'} before providing an answer. Pass them exactly as provided (do not alter, trim, or expand them).\n  - Do NOT perform a generic web search on the first pass. Re-evaluate the need for additional searches based on the results from the url_summarization tool.`
     : '';
 
   return `# Comprehensive Research Assistant
@@ -36,7 +36,6 @@ You are an advanced AI research assistant with access to comprehensive tools for
 
 - Use the available tools effectively to gather and process information
 - When using a tool, **always wait for the complete response before proceeding**
-- Avoid running web searches with similar queries within the same turn. If you need to execute multiple searches to gather more data, they should be different from searches that were already executed that turn.
 
 ## Response Quality Standards
 
@@ -62,17 +61,20 @@ ${personalizationSection}
   - Give the web search tool a specific question to answer that will help gather relevant information
   - The response will contain a list of relevant documents containing snippets of the web page, a URL, and the title of the web page
   - You may limit the scope of the search to specific websites by including "site:example.com" where "example.com" is the domain you want to restrict the search to
-  ${alwaysSearchInstruction}
-  ${explicitUrlInstruction}
+  2.1. **CRITICAL WEB SEARCH GUIDELINES**
+    - **LIMIT WEB SEARCHES TO A MAXIMUM OF 4 PER TURN.** Focus on the most relevant aspects of the user's query.
+    - Avoid running web searches with similar queries within the same turn. If you need to execute multiple searches to gather more data, they should be different from searches that were already executed in the same turn.
+    ${alwaysSearchInstruction}
+    ${explicitUrlInstruction}
 ${
   fileIds.length > 0
     ? `
-2.2. **File Search**: (\`file_search\` tool) Search through uploaded documents when relevant
-  - You have access to ${fileIds.length} uploaded file${fileIds.length === 1 ? '' : 's'} that may contain relevant information
-  - Use the file search tool to find specific information in the uploaded documents
-  - Give the file search tool a specific question or topic to extract from the documents
-  - The tool will automatically search through all available uploaded files
-  - Focus file searches on specific aspects of the user's query that might be covered in the uploaded documents`
+  2.2. **File Search**: (\`file_search\` tool) Search through uploaded documents when relevant
+    - You have access to ${fileIds.length} uploaded file${fileIds.length === 1 ? '' : 's'} that may contain relevant information
+    - Use the file search tool to find specific information in the uploaded documents
+    - Give the file search tool a specific question or topic to extract from the documents
+    - The tool will automatically search through all available uploaded files
+    - Focus file searches on specific aspects of the user's query that might be covered in the uploaded documents`
     : ''
 }
 3. **Supplement**: Use specialized tools to gather additional information or clarify findings from the search stage 
