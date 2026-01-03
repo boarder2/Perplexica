@@ -96,6 +96,7 @@ ${
     - Use when the user references a YouTube video or when web search results include YouTube video links
     - Provide the **exact** YouTube video URL to retrieve its transcript
     - The tool returns the transcript text
+    - If the youtube_transcript tool call fails to return text, inform the user that the transcript cannot be retrieved and do not perform any more searching or tool calls related to that video
   3.4. **PDF URL Retrieval**: (\`pdf_loader\` tool)
     - Use when the user references a PDF URL or when web search results include URLs to PDF files (A URL starting with http(s) and ending in .pdf)
     - Provide the **exact** URL of the PDF document to retrieve its content
