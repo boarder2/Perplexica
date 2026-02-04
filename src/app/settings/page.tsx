@@ -30,7 +30,6 @@ import {
   formattingChat,
 } from '@/lib/prompts/templates';
 import { PROVIDER_METADATA } from '@/lib/providers';
-import Optimization from '@/components/MessageInputActions/Optimization';
 import ModelSelector from '@/components/MessageInputActions/ModelSelector';
 import { Prompt } from '@/lib/types/prompt';
 
@@ -267,8 +266,6 @@ export default function SettingsPage() {
   );
 
   // Default Search Settings state variables
-  const [searchOptimizationMode, setSearchOptimizationMode] =
-    useState<string>('');
   const [searchChatModelProvider, setSearchChatModelProvider] =
     useState<string>('');
   const [searchChatModel, setSearchChatModel] = useState<string>('');
@@ -408,17 +405,11 @@ export default function SettingsPage() {
 
     // Load search settings from localStorage
     const loadSearchSettings = () => {
-      const storedSearchOptimizationMode = localStorage.getItem(
-        'searchOptimizationMode',
-      );
       const storedSearchChatModelProvider = localStorage.getItem(
         'searchChatModelProvider',
       );
       const storedSearchChatModel = localStorage.getItem('searchChatModel');
 
-      if (storedSearchOptimizationMode) {
-        setSearchOptimizationMode(storedSearchOptimizationMode);
-      }
       if (storedSearchChatModelProvider) {
         setSearchChatModelProvider(storedSearchChatModelProvider);
       }
@@ -1254,32 +1245,6 @@ export default function SettingsPage() {
               tooltip='Select the settings that will be used when navigating to the site with a search query, such as "example.com/search?q=your+query".\nThese settings will override the global settings for search queries.\n\nIf settings are not specified, the global settings will be used.'
             >
               <div className="flex flex-col space-y-4">
-                <div className="flex flex-col space-y-1">
-                  <p className="text-sm">Optimization Mode</p>
-                  <div className="flex justify-start items-center space-x-2">
-                    <Optimization
-                      optimizationMode={searchOptimizationMode}
-                      setOptimizationMode={(mode) => {
-                        setSearchOptimizationMode(mode);
-                        saveSearchSetting('searchOptimizationMode', mode);
-                      }}
-                      showTitle={true}
-                    />
-                    {searchOptimizationMode && (
-                      <button
-                        onClick={() => {
-                          setSearchOptimizationMode('');
-                          localStorage.removeItem('searchOptimizationMode');
-                        }}
-                        className="p-1.5 rounded-md hover:bg-surface-2 transition-colors"
-                        title="Reset optimization mode"
-                      >
-                        <RotateCcw size={16} />
-                      </button>
-                    )}
-                  </div>
-                </div>
-
                 <div className="flex flex-col space-y-1">
                   <p className="text-sm">Chat Model</p>
                   <div className="flex justify-start items-center space-x-2">

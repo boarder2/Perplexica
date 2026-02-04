@@ -38,7 +38,6 @@ interface embeddingModel {
 }
 
 interface ChatRequestBody {
-  optimizationMode: 'speed' | 'agent' | 'deepResearch';
   focusMode: string;
   chatModel?: chatModel;
   systemModel?: systemModel; // optional; defaults to chat model when absent
@@ -63,7 +62,6 @@ export const POST = async (req: Request) => {
     }
 
     body.history = body.history || [];
-    body.optimizationMode = body.optimizationMode || 'speed';
     body.stream = body.stream || false;
 
     const history: BaseMessage[] = body.history.map((msg) => {
@@ -190,7 +188,6 @@ export const POST = async (req: Request) => {
       chatLlm,
       systemLlm,
       embeddings,
-      body.optimizationMode,
       [],
       signal,
       personaInstructions,

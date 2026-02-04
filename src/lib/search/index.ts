@@ -1,8 +1,5 @@
 import MetaSearchAgent from '@/lib/search/metaSearchAgent';
-import SpeedSearchAgent from '@/lib/search/speedSearch';
 import prompts from '../prompts';
-
-export { default as SpeedSearchAgent } from './speedSearch';
 
 export const searchHandlers: Record<string, MetaSearchAgent> = {
   webSearch: new MetaSearchAgent({

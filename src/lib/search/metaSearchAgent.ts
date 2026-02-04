@@ -3,7 +3,6 @@ import type { BaseChatModel } from '@langchain/core/language_models/chat_models'
 import { BaseMessage } from '@langchain/core/messages';
 import eventEmitter from 'events';
 import { AgentSearch } from './agentSearch';
-import SpeedSearchAgent from './speedSearch';
 import { CachedEmbeddings } from '../utils/cachedEmbeddings';
 
 export interface MetaSearchAgentType {
@@ -14,7 +13,6 @@ export interface MetaSearchAgentType {
     chatLlm: BaseChatModel,
     systemLlm: BaseChatModel,
     embeddings: CachedEmbeddings,
-    optimizationMode: 'speed' | 'agent' | 'deepResearch',
     fileIds: string[],
     signal: AbortSignal,
     personaInstructions?: string,
@@ -106,7 +104,6 @@ class MetaSearchAgent implements MetaSearchAgentType {
     chatLlm: BaseChatModel,
     systemLlm: BaseChatModel,
     embeddings: CachedEmbeddings,
-    optimizationMode: 'speed' | 'agent' | 'deepResearch',
     fileIds: string[],
     signal: AbortSignal,
     personaInstructions?: string,
@@ -117,45 +114,7 @@ class MetaSearchAgent implements MetaSearchAgentType {
   ) {
     const emitter = new eventEmitter();
 
-    // Branch to speed search if optimization mode is 'speed'
-    if (optimizationMode === 'speed') {
-      const speedSearchAgent = new SpeedSearchAgent(this.config);
-      return speedSearchAgent.searchAndAnswer(
-        message,
-        history,
-        chatLlm,
-        systemLlm,
-        embeddings,
-        signal,
-        personaInstructions,
-        focusMode,
-        personalization,
-      );
-    }
-
-    // Execute deep research workflow when selected
-    if (optimizationMode === 'deepResearch') {
-      this.executeAgentWorkflow(
-        chatLlm,
-        systemLlm,
-        embeddings,
-        emitter,
-        message,
-        history,
-        chatId,
-        fileIds,
-        personaInstructions || '',
-        signal,
-        'deepResearch',
-        messageId || '',
-        retrievalSignal || signal,
-        personalization,
-      );
-
-      return emitter;
-    }
-
-    // Execute agent workflow for 'agent' mode (default)
+    // Execute agent workflow
     this.executeAgentWorkflow(
       chatLlm,
       systemLlm,

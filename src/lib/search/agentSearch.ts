@@ -3,7 +3,6 @@ import { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import { BaseMessage } from '@langchain/core/messages';
 import { EventEmitter } from 'events';
 import { SimplifiedAgent } from './simplifiedAgent';
-import DeepResearchAgent from './deepResearchAgent';
 import { CachedEmbeddings } from '../utils/cachedEmbeddings';
 import { PersonalizationContext } from './metaSearchAgent';
 
@@ -16,7 +15,6 @@ export class AgentSearch {
 
   // Simplified agent experimental implementation
   private simplifiedAgent: SimplifiedAgent;
-  private deepResearchAgent?: DeepResearchAgent;
 
   constructor(
     chatLlm: BaseChatModel,
@@ -47,33 +45,16 @@ export class AgentSearch {
       this.personalization?.location,
       this.personalization?.profile,
     );
-
-    // Initialize deep research agent lazily only if needed
-    if (agentMode === 'deepResearch') {
-      this.deepResearchAgent = new DeepResearchAgent(
-        chatLlm,
-        systemLlm,
-        embeddings,
-        emitter,
-        personaInstructions,
-        signal,
-        this.chatId || '',
-        this.messageId || '',
-        this.retrievalSignal || signal,
-        this.personalization?.location,
-        this.personalization?.profile,
-      );
-    }
   }
 
   /**
-   * Execute the simplified agent search workflow (experimental)
+   * Execute the agent search workflow
    */
-  async searchAndAnswerSimplified(
+  async searchAndAnswer(
     query: string,
     history: BaseMessage[] = [],
     fileIds: string[] = [],
-  ): Promise<void> {
+  ) {
     console.log('AgentSearch: Using simplified agent implementation');
 
     // Delegate to simplified agent with agentMode
@@ -83,25 +64,5 @@ export class AgentSearch {
       fileIds,
       this.agentMode,
     );
-  }
-  /**
-   * Execute the agent search workflow
-   */
-  async searchAndAnswer(
-    query: string,
-    history: BaseMessage[] = [],
-    fileIds: string[] = [],
-  ) {
-    if (this.agentMode === 'deepResearch' && this.deepResearchAgent) {
-      console.log('AgentSearch: Routing to DeepResearchAgent');
-      return await this.deepResearchAgent.searchAndAnswer(
-        query,
-        history,
-        fileIds,
-      );
-    }
-
-    console.log('AgentSearch: Routing to simplified agent implementation');
-    return await this.searchAndAnswerSimplified(query, history, fileIds);
   }
 }

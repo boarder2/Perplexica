@@ -353,7 +353,6 @@ const ChatWindow = ({ id }: { id?: string }) => {
   const [fileIds, setFileIds] = useState<string[]>([]);
 
   const [focusMode, setFocusMode] = useState('webSearch');
-  const [optimizationMode, setOptimizationMode] = useState('speed');
   const [systemPromptIds, setSystemPromptIds] = useState<string[]>([]);
 
   const [isMessagesLoaded, setIsMessagesLoaded] = useState(false);
@@ -445,16 +444,6 @@ const ChatWindow = ({ id }: { id?: string }) => {
       setSendPersonalization(false);
     }
   }, [personalizationAbout, sendPersonalization, setSendPersonalization]);
-
-  useEffect(() => {
-    const savedOptimizationMode = localStorage.getItem('optimizationMode');
-
-    if (savedOptimizationMode !== null) {
-      setOptimizationMode(savedOptimizationMode);
-    } else {
-      localStorage.setItem('optimizationMode', optimizationMode);
-    }
-  }, [optimizationMode]);
 
   useEffect(() => {
     if (
@@ -601,11 +590,7 @@ const ChatWindow = ({ id }: { id?: string }) => {
 
       if (data.type === 'sources_added') {
         // Track gathering sources during search phase with search query
-        if (
-          data.searchQuery &&
-          data.searchQuery.trim() &&
-          optimizationMode !== 'speed'
-        ) {
+        if (data.searchQuery && data.searchQuery.trim()) {
           setGatheringSources((prev) => {
             const existingIndex = prev.findIndex(
               (group) => group.searchQuery === data.searchQuery,
@@ -864,9 +849,6 @@ const ChatWindow = ({ id }: { id?: string }) => {
       currentChatModelProvider || chatModelProvider.provider;
     const modelName = currentChatModel || chatModelProvider.name;
 
-    const currentOptimizationMode =
-      localStorage.getItem('optimizationMode') || optimizationMode;
-
     // Read System Model selection from localStorage; fallback to chat model
     const systemModelProvider =
       localStorage.getItem('systemModelProvider') || modelProvider;
@@ -882,7 +864,6 @@ const ChatWindow = ({ id }: { id?: string }) => {
       chatId: chatId!,
       files: fileIds,
       focusMode: focusMode,
-      optimizationMode: currentOptimizationMode,
       history: messageChatHistory,
       chatModel: {
         name: modelName,
@@ -999,24 +980,10 @@ const ChatWindow = ({ id }: { id?: string }) => {
   useEffect(() => {
     if (isReady && initialMessage && isConfigReady) {
       // Check if we have an initial query and apply saved search settings
-      const searchOptimizationMode = localStorage.getItem(
-        'searchOptimizationMode',
-      );
       const searchChatModelProvider = localStorage.getItem(
         'searchChatModelProvider',
       );
       const searchChatModel = localStorage.getItem('searchChatModel');
-
-      // Apply saved optimization mode if valid
-      if (
-        searchOptimizationMode &&
-        (searchOptimizationMode === 'speed' ||
-          searchOptimizationMode === 'agent' ||
-          searchOptimizationMode === 'deepResearch')
-      ) {
-        setOptimizationMode(searchOptimizationMode);
-        localStorage.setItem('optimizationMode', searchOptimizationMode);
-      }
 
       // Apply saved chat model if valid
       if (searchChatModelProvider && searchChatModel) {
@@ -1069,8 +1036,6 @@ const ChatWindow = ({ id }: { id?: string }) => {
               setFileIds={setFileIds}
               files={files}
               setFiles={setFiles}
-              optimizationMode={optimizationMode}
-              setOptimizationMode={setOptimizationMode}
               focusMode={focusMode}
               setFocusMode={setFocusMode}
               handleEditMessage={handleEditMessage}
@@ -1094,8 +1059,6 @@ const ChatWindow = ({ id }: { id?: string }) => {
             sendMessage={sendMessage}
             focusMode={focusMode}
             setFocusMode={setFocusMode}
-            optimizationMode={optimizationMode}
-            setOptimizationMode={setOptimizationMode}
             systemPromptIds={systemPromptIds}
             setSystemPromptIds={setSystemPromptIds}
             fileIds={fileIds}

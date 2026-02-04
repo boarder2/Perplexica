@@ -14,22 +14,16 @@ const Attach = ({
   setFileIds,
   files,
   setFiles,
-  optimizationMode,
 }: {
   fileIds: string[];
   setFileIds: (fileIds: string[]) => void;
   files: FileType[];
   setFiles: (files: FileType[]) => void;
-  optimizationMode: string;
 }) => {
   const [loading, setLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const isSpeedMode = optimizationMode === 'speed';
-  const isDisabled = isSpeedMode;
-
   const handleChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (isDisabled) return;
 
     setLoading(true);
     const data = new FormData();
@@ -79,27 +73,15 @@ const Attach = ({
       <Popover className="relative w-full max-w-[15rem] md:max-w-md lg:max-w-lg">
         <PopoverButton
           type="button"
-          disabled={isDisabled}
           className={cn(
-            'flex flex-row items-center justify-between space-x-1 p-2 rounded-xl transition duration-200',
+            'flex flex-row items-center justify-between space-x-1 p-2 rounded-xl transition duration-200 text-fg/50 hover:bg-surface-2 hover:text-fg',
             files.length > 0 ? '-ml-2 lg:-ml-3' : '',
-            isDisabled
-              ? 'text-fg/20 cursor-not-allowed'
-              : 'text-fg/50 hover:bg-surface-2 hover:text-fg',
           )}
         >
           {files.length > 1 && (
             <>
-              <File
-                size={19}
-                className={isDisabled ? 'text-fg/20' : 'text-accent'}
-              />
-              <p
-                className={cn(
-                  'inline whitespace-nowrap text-xs font-medium',
-                  isDisabled ? 'text-fg/20' : 'text-accent',
-                )}
-              >
+              <File size={19} className="text-accent" />
+              <p className="inline whitespace-nowrap text-xs font-medium text-accent">
                 {files.length} files
               </p>
             </>
@@ -107,16 +89,8 @@ const Attach = ({
 
           {files.length === 1 && (
             <>
-              <File
-                size={18}
-                className={isDisabled ? 'text-fg/20' : 'text-accent'}
-              />
-              <p
-                className={cn(
-                  'text-xs font-medium',
-                  isDisabled ? 'text-fg/20' : 'text-accent',
-                )}
-              >
+              <File size={18} className="text-accent" />
+              <p className="text-xs font-medium text-accent">
                 {files[0].fileName.length > 10
                   ? files[0].fileName.replace(/\.\w+$/, '').substring(0, 3) +
                     '...' +
@@ -142,14 +116,8 @@ const Attach = ({
                 <div className="flex flex-row items-center space-x-4">
                   <button
                     type="button"
-                    onClick={() => !isDisabled && fileInputRef.current?.click()}
-                    disabled={isDisabled}
-                    className={cn(
-                      'flex flex-row items-center space-x-1 transition duration-200',
-                      isDisabled
-                        ? 'text-fg/20 cursor-not-allowed'
-                        : 'text-fg/70 hover:text-fg',
-                    )}
+                    onClick={() => fileInputRef.current?.click()}
+                    className="flex flex-row items-center space-x-1 transition duration-200 text-fg/70 hover:text-fg"
                   >
                     <input
                       type="file"
@@ -158,25 +126,16 @@ const Attach = ({
                       accept=".pdf,.docx,.txt"
                       multiple
                       hidden
-                      disabled={isDisabled}
                     />
                     <Plus size={18} />
                     <p className="text-xs">Add</p>
                   </button>
                   <button
                     onClick={() => {
-                      if (!isDisabled) {
-                        setFiles([]);
-                        setFileIds([]);
-                      }
+                      setFiles([]);
+                      setFileIds([]);
                     }}
-                    disabled={isDisabled}
-                    className={cn(
-                      'flex flex-row items-center space-x-1 transition duration-200',
-                      isDisabled
-                        ? 'text-fg/20 cursor-not-allowed'
-                        : 'text-fg/70 hover:text-fg',
-                    )}
+                    className="flex flex-row items-center space-x-1 transition duration-200 text-fg/70 hover:text-fg"
                   >
                     <Trash size={14} />
                     <p className="text-xs">Clear</p>
@@ -207,27 +166,13 @@ const Attach = ({
           </PopoverPanel>
         </Transition>
       </Popover>
-      {isSpeedMode && (
-        <div className="absolute bottom-full mb-2 left-1/2 transform -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
-          <div className="bg-fg text-bg text-xs px-2 py-1 rounded whitespace-nowrap">
-            File attachments are disabled in Speed mode
-            <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-fg"></div>
-          </div>
-        </div>
-      )}
     </div>
   ) : (
     <div className="relative group">
       <button
         type="button"
-        onClick={() => !isDisabled && fileInputRef.current?.click()}
-        disabled={isDisabled}
-        className={cn(
-          'flex flex-row items-center space-x-1 rounded-xl transition duration-200 p-2',
-          isDisabled
-            ? 'text-fg/20 cursor-not-allowed'
-            : 'text-fg/50 hover:bg-surface-2 hover:text-fg',
-        )}
+        onClick={() => fileInputRef.current?.click()}
+        className="flex flex-row items-center space-x-1 rounded-xl transition duration-200 p-2 text-fg/50 hover:bg-surface-2 hover:text-fg"
       >
         <input
           type="file"
@@ -236,18 +181,9 @@ const Attach = ({
           accept=".pdf,.docx,.txt"
           multiple
           hidden
-          disabled={isDisabled}
         />
         <Paperclip size="18" />
       </button>
-      {isSpeedMode && (
-        <div className="absolute bottom-full mb-2 left-1/2 transform -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
-          <div className="bg-fg text-bg text-xs px-2 py-1 rounded whitespace-nowrap">
-            File attachments are disabled in Speed mode
-            <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-fg"></div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

@@ -220,7 +220,7 @@ This fork adds several enhancements to the original Perplexica project:
   - Added BASE_URL config to support reverse proxy deployments
   - Added autocomplete functionality proxied to SearxNG
 - ✅ Query-based settings override for browser search engine integration
-  - Automatically applies user's saved optimization mode and AI model preferences when accessing via URL with `q` parameter
+  - Automatically applies user's saved AI model preferences when accessing via URL with `q` parameter
   - Enables seamless browser search bar integration with personalized settings
 
 ### AI Functionality

@@ -16,8 +16,6 @@ const Chat = ({
   setFileIds,
   files,
   setFiles,
-  optimizationMode,
-  setOptimizationMode,
   focusMode,
   setFocusMode,
   handleEditMessage,
@@ -51,8 +49,6 @@ const Chat = ({
   setFileIds: (fileIds: string[]) => void;
   files: File[];
   setFiles: (files: File[]) => void;
-  optimizationMode: string;
-  setOptimizationMode: (mode: string) => void;
   focusMode: string;
   setFocusMode: (mode: string) => void;
   handleEditMessage: (messageId: string, content: string) => void;
@@ -318,8 +314,6 @@ const Chat = ({
           setFileIds={setFileIds}
           files={files}
           setFiles={setFiles}
-          optimizationMode={optimizationMode}
-          setOptimizationMode={setOptimizationMode}
           focusMode={focusMode}
           setFocusMode={setFocusMode}
           onCancel={handleCancel}

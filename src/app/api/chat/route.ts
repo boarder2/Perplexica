@@ -55,7 +55,6 @@ type EmbeddingModel = {
 
 type Body = {
   message: Message;
-  optimizationMode: 'speed' | 'agent' | 'deepResearch';
   focusMode: string;
   history: Array<[string, string]>;
   files: Array<string>;
@@ -553,7 +552,6 @@ export const POST = async (req: Request) => {
       chatLlm!,
       systemLlm!,
       embedding,
-      body.optimizationMode,
       body.files,
       abortController.signal,
       personaInstructionsContent,

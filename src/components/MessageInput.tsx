@@ -5,7 +5,6 @@ import { File } from './ChatWindow';
 import Attach from './MessageInputActions/Attach';
 import Focus from './MessageInputActions/Focus';
 import ModelConfigurator from './MessageInputActions/ModelConfigurator';
-import Optimization from './MessageInputActions/Optimization';
 import SystemPromptSelector from './MessageInputActions/SystemPromptSelector'; // Import new component
 import PersonalizationPicker from './PersonalizationPicker';
 
@@ -16,8 +15,6 @@ const MessageInput = ({
   setFileIds,
   files,
   setFiles,
-  optimizationMode,
-  setOptimizationMode,
   focusMode,
   setFocusMode,
   firstMessage,
@@ -44,8 +41,6 @@ const MessageInput = ({
   setFileIds: (fileIds: string[]) => void;
   files: File[];
   setFiles: (files: File[]) => void;
-  optimizationMode: string;
-  setOptimizationMode: (mode: string) => void;
   focusMode: string;
   setFocusMode: (mode: string) => void;
   firstMessage: boolean;
@@ -150,13 +145,6 @@ const MessageInput = ({
             }
             autoFocus={true}
           />
-          <Optimization
-            optimizationMode={optimizationMode}
-            setOptimizationMode={(optimizationMode) => {
-              setOptimizationMode(optimizationMode);
-              localStorage.setItem('optimizationMode', optimizationMode);
-            }}
-          />
         </div>
         <div className="flex flex-row items-center justify-between">
           <div className="flex flex-row items-center space-x-2">
@@ -166,7 +154,6 @@ const MessageInput = ({
               setFileIds={setFileIds}
               files={files}
               setFiles={setFiles}
-              optimizationMode={optimizationMode}
             />
           </div>
           <div className="flex flex-row items-center space-x-2">
