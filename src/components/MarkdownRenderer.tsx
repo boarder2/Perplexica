@@ -26,6 +26,7 @@ import ThinkBox from './ThinkBox';
 import { Document } from '@langchain/core/documents';
 import CitationLink from './CitationLink';
 import { decodeHtmlEntities } from '@/lib/utils/html';
+import { SubagentExecution } from './MessageActions/SubagentExecution';
 
 // Helper functions for think overlay
 const extractThinkContent = (content: string): string | null => {
@@ -375,6 +376,9 @@ const MarkdownRenderer = ({
     overrides: {
       ToolCall: {
         component: ToolCall,
+      },
+      SubagentExecution: {
+        component: SubagentExecution,
       },
       think: {
         component: ({ children, id, ...props }) => {

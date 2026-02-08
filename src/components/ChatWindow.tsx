@@ -715,6 +715,310 @@ const ChatWindow = ({ id }: { id?: string }) => {
         return;
       }
 
+      // Handle subagent execution started
+      if (data.type === 'subagent_started') {
+        console.log('ChatWindow: Subagent started:', data);
+        const subagentMarkup = `<SubagentExecution id="${data.executionId}" name="${data.name}" task="${data.task}" status="running"></SubagentExecution>\n`;
+
+        if (!added) {
+          setMessages((prevMessages) => [
+            ...prevMessages,
+            {
+              content: subagentMarkup,
+              messageId: data.messageId || 'temp',
+              chatId: chatId!,
+              role: 'assistant',
+              sources: sources,
+              createdAt: new Date(),
+            },
+          ]);
+          added = true;
+        } else {
+          setMessages((prev) =>
+            prev.map((message) =>
+              message.messageId === data.messageId
+                ? { ...message, content: message.content + subagentMarkup }
+                : message,
+            ),
+          );
+        }
+        recievedMessage += subagentMarkup;
+        setScrollTrigger((prev) => prev + 1);
+        return;
+      }
+
+      // Handle subagent data (nested events like tool calls and responses)
+      if (data.type === 'subagent_data') {
+        const nestedEvent = data.data;
+        const executionId = data.subagentId;
+
+        // Handle response tokens - accumulate into responseText attribute
+        if (nestedEvent.type === 'response') {
+          const token = nestedEvent.data || '';
+          console.log('ChatWindow: Subagent response token:', {
+            executionId,
+            tokenLength: token.length,
+            token: token.substring(0, 50)
+          });
+          setMessages((prev) =>
+            prev.map((message) => {
+              if (message.messageId === data.messageId) {
+                const subagentRegex = new RegExp(
+                  `<SubagentExecution\\s+id="${executionId}"([^>]*)>`,
+                  'g',
+                );
+
+                const updatedContent = message.content.replace(
+                  subagentRegex,
+                  (match, attrs) => {
+                    // Extract existing responseText
+                    const responseMatch = attrs.match(/responseText="([^"]*)"/); 
+                    let existingText = '';
+                    if (responseMatch) {
+                      existingText = responseMatch[1]
+                        .replace(/&quot;/g, '"')
+                        .replace(/&lt;/g, '<')
+                        .replace(/&gt;/g, '>')
+                        .replace(/&amp;/g, '&');
+                    }
+
+                    // Append new token
+                    const newText = existingText + token;
+                    const escapedText = newText
+                      .replace(/&/g, '&amp;')
+                      .replace(/</g, '&lt;')
+                      .replace(/>/g, '&gt;')
+                      .replace(/"/g, '&quot;');
+
+                    // Update or add responseText attribute
+                    let updatedAttrs = attrs.replace(
+                      /responseText="[^"]*"/,
+                      `responseText="${escapedText}"`,
+                    );
+                    if (!updatedAttrs.includes('responseText=')) {
+                      updatedAttrs += ` responseText="${escapedText}"`;
+                    }
+
+                    console.log('ChatWindow: Updated responseText attr:', {
+                      executionId,
+                      textLength: newText.length,
+                      escapedLength: escapedText.length
+                    });
+
+                    return `<SubagentExecution id="${executionId}"${updatedAttrs}>`;
+                  },
+                );
+
+                return { ...message, content: updatedContent };
+              }
+              return message;
+            }),
+          );
+          return;
+        }
+
+        // Only process tool call events beyond this point
+        if (!nestedEvent.type || !nestedEvent.type.startsWith('tool_call')) {
+          return;
+        }
+
+        console.log('ChatWindow: Subagent tool call:', nestedEvent);
+
+        // Convert tool call event to ToolCall markup
+        let toolCallMarkup = '';
+        if (nestedEvent.type === 'tool_call_started' && nestedEvent.data?.content) {
+          toolCallMarkup = nestedEvent.data.content;
+        } else if (nestedEvent.type === 'tool_call_success' && nestedEvent.data?.toolCallId) {
+          // Success event will update existing ToolCall, handle in next block
+          setMessages((prev) =>
+            prev.map((message) => {
+              if (message.messageId === data.messageId) {
+                // Update existing ToolCall status
+                const toolCallRegex = new RegExp(
+                  `<ToolCall([^>]*toolCallId="${nestedEvent.data.toolCallId}"[^>]*)>`,
+                  'g',
+                );
+                const updatedContent = message.content.replace(
+                  toolCallRegex,
+                  (match, attrs) => {
+                    let updated = attrs.replace(/status="[^"]*"/, 'status="success"');
+                    if (!updated.includes('status=')) {
+                      updated += ' status="success"';
+                    }
+                    return `<ToolCall${updated}>`;
+                  },
+                );
+                return { ...message, content: updatedContent };
+              }
+              return message;
+            }),
+          );
+          return;
+        } else if (nestedEvent.type === 'tool_call_error' && nestedEvent.data?.toolCallId) {
+          // Error event will update existing ToolCall
+          setMessages((prev) =>
+            prev.map((message) => {
+              if (message.messageId === data.messageId) {
+                const toolCallRegex = new RegExp(
+                  `<ToolCall([^>]*toolCallId="${nestedEvent.data.toolCallId}"[^>]*)>`,
+                  'g',
+                );
+                const updatedContent = message.content.replace(
+                  toolCallRegex,
+                  (match, attrs) => {
+                    let updated = attrs.replace(/status="[^"]*"/, 'status="error"');
+                    if (!updated.includes('status=')) {
+                      updated += ' status="error"';
+                    }
+                    if (nestedEvent.data.error) {
+                      const escapedError = nestedEvent.data.error
+                        .replace(/&/g, '&amp;')
+                        .replace(/</g, '&lt;')
+                        .replace(/>/g, '&gt;')
+                        .replace(/"/g, '&quot;');
+                      updated += ` error="${escapedError}"`;
+                    }
+                    return `<ToolCall${updated}>`;
+                  },
+                );
+                return { ...message, content: updatedContent };
+              }
+              return message;
+            }),
+          );
+          return;
+        }
+
+        if (!toolCallMarkup) {
+          return;
+        }
+
+        // Insert ToolCall markup inside SubagentExecution
+        setMessages((prev) =>
+          prev.map((message) => {
+            if (message.messageId === data.messageId) {
+              // Use a more permissive regex that can match existing nested content
+              const subagentRegex = new RegExp(
+                `(<SubagentExecution\\s+id="${executionId}"[^>]*>)(.*?)(</SubagentExecution>)`,
+                'gs',
+              );
+
+              const updatedContent = message.content.replace(
+                subagentRegex,
+                (match, openTag, content, closeTag) => {
+                  console.log('ChatWindow: Inserting ToolCall, existing content length:', content.length);
+                  return `${openTag}${content}${toolCallMarkup}\n${closeTag}`;
+                },
+              );
+
+              return { ...message, content: updatedContent };
+            }
+            return message;
+          }),
+        );
+
+        setScrollTrigger((prev) => prev + 1);
+        return;
+      }
+
+      // Handle subagent completion or error
+      if (
+        data.type === 'subagent_completed' ||
+        data.type === 'subagent_error'
+      ) {
+        console.log('ChatWindow: Subagent ended:', data.type, data);
+        const status = data.type === 'subagent_completed' ? 'success' : 'error';
+        const executionId = data.id;
+
+        setMessages((prev) =>
+          prev.map((message) => {
+            if (message.messageId === data.messageId) {
+              // Find and update the specific SubagentExecution tag
+              const subagentRegex = new RegExp(
+                `<SubagentExecution\\s+id="${executionId}"([^>]*)>(.*?)<\\/SubagentExecution>`,
+                'gs',
+              );
+
+              const updatedContent = message.content.replace(
+                subagentRegex,
+                (match, attrs, innerContent) => {
+                  // Update attributes
+                  let updatedAttrs = attrs
+                    .replace(/status="[^"]*"/, `status="${status}"`)
+                    .trim();
+
+                  if (!updatedAttrs.includes('status=')) {
+                    updatedAttrs += ` status="${status}"`;
+                  }
+
+                  if (data.summary && status === 'success') {
+                    // Escape HTML entities in summary
+                    const escapedSummary = data.summary
+                      .replace(/&/g, '&amp;')
+                      .replace(/</g, '&lt;')
+                      .replace(/>/g, '&gt;')
+                      .replace(/"/g, '&quot;');
+                    updatedAttrs += ` summary="${escapedSummary}"`;
+                  }
+
+                  if (data.error && status === 'error') {
+                    const escapedError = data.error
+                      .replace(/&/g, '&amp;')
+                      .replace(/</g, '&lt;')
+                      .replace(/>/g, '&gt;')
+                      .replace(/"/g, '&quot;');
+                    updatedAttrs += ` error="${escapedError}"`;
+                  }
+
+                  // Preserve inner content (ToolCall markup)
+                  return `<SubagentExecution ${updatedAttrs}>${innerContent}</SubagentExecution>`;
+                },
+              );
+
+              return { ...message, content: updatedContent };
+            }
+            return message;
+          }),
+        );
+
+        // Update recievedMessage as well
+        const subagentRegexForPersistence = new RegExp(
+          `<SubagentExecution\\s+id="${executionId}"([^>]*)>(.*?)<\\/SubagentExecution>`,
+          'gs',
+        );
+        recievedMessage = recievedMessage.replace(
+          subagentRegexForPersistence,
+          (match, attrs, innerContent) => {
+            let updatedAttrs = attrs
+              .replace(/status="[^"]*"/, `status="${status}"`)
+              .trim();
+            if (!updatedAttrs.includes('status=')) {
+              updatedAttrs += ` status="${status}"`;
+            }
+            if (data.summary && status === 'success') {
+              const escapedSummary = data.summary
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+              updatedAttrs += ` summary="${escapedSummary}"`;
+            }
+            if (data.error && status === 'error') {
+              const escapedError = data.error
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+              updatedAttrs += ` error="${escapedError}"`;
+            }
+            return `<SubagentExecution ${updatedAttrs}>${innerContent}</SubagentExecution>`;
+          },
+        );
+
+        setScrollTrigger((prev) => prev + 1);
+        return;
+      }
+
       if (data.type === 'response') {
         // Add to buffer instead of immediately updating UI
         messageBuffer += data.data;

@@ -115,6 +115,230 @@ Perplexica supports multiple specialized search modes:
 - Chat Mode: Have a creative conversation
 - Firefox AI Mode: Auto-detected; tools are disabled and a conversational response is generated for that turn
 
+## Subagent Architecture
+
+Perplexica supports ephemeral subagents for complex query decomposition. Subagents are specialized, short-lived agents that run within a single request context to handle specific aspects of complex queries in parallel.
+
+### Available Subagents
+
+1. **Deep Research** (`deep_research`)
+   - Purpose: Comprehensive multi-source web research on specific aspects
+   - Tools: `web_search`, `url_summarization`, `image_search`, `youtube_transcript`, `pdf_loader`
+   - Model: Chat Model (needs reasoning capability)
+   - Use Cases: Complex research topics, fact-finding, exploring multiple perspectives
+
+2. **File Analyzer** (`file_analyzer`)
+   - Purpose: Deep semantic analysis of uploaded documents
+   - Tools: `file_search`
+   - Model: System Model (efficient extraction)
+   - Use Cases: Document analysis, extracting specific information from uploads
+
+3. **Content Synthesizer** (`content_synthesizer`)
+   - Purpose: Aggregating and synthesizing results from multiple subagents
+   - Tools: None (works from provided context)
+   - Model: Chat Model (strong reasoning)
+   - Note: Automatically invoked when multiple subagents are used
+
+### Architecture
+
+The subagent system uses a supervisor pattern:
+
+```
+User Query → Supervisor → Decomposition Analysis
+                ↓
+          [Use Subagents?]
+           ↓           ↓
+         No           Yes
+           ↓           ↓
+    SimplifiedAgent   Parallel Subagent Execution
+                      ↓
+                   Synthesis
+                      ↓
+                  Final Response
+```
+
+#### Key Components
+
+- **Supervisor** ([src/lib/search/subagents/supervisor.ts](src/lib/search/subagents/supervisor.ts))
+  - Analyzes queries to determine if decomposition would be beneficial
+  - Coordinates parallel subagent execution
+  - Synthesizes results from multiple subagents
+
+- **SubagentExecutor** ([src/lib/search/subagents/executor.ts](src/lib/search/subagents/executor.ts))
+  - Wraps SimplifiedAgent with subagent-specific configuration
+  - Enforces tool restrictions via allowedTools whitelist
+  - Provides isolated event streaming with subagent context
+
+- **Definitions** ([src/lib/search/subagents/definitions.ts](src/lib/search/subagents/definitions.ts))
+  - Hardcoded subagent configurations (ephemeral, no persistence)
+  - Defines system prompts, allowed tools, model selection per subagent
+
+- **State Tracking** ([src/lib/state/chatAgentState.ts](src/lib/state/chatAgentState.ts))
+  - `SubagentExecution` interface tracks execution status, results, timing
+  - Accumulated in `subagentExecutions` array within request scope
+
+### Execution Flow
+
+1. **Query Analysis**: Supervisor calls System Model to determine if query benefits from decomposition
+2. **Task Breakdown**: If yes, query is decomposed into 2-3 parallel subtasks with assigned subagents
+3. **Parallel Execution**: Each SubagentExecutor runs independently with:
+   - Isolated EventEmitter for streaming
+   - Filtered tool access based on `allowedTools`
+   - Limited context (last 5 messages) to control tokens
+   - Configurable model (Chat vs System)
+4. **Result Aggregation**: Documents and summaries collected from all subagents
+5. **Synthesis**: Chat Model generates final response integrating all subagent findings
+
+### UI Integration
+
+Subagent activity is displayed in real-time via the `SubagentExecution` component ([src/components/MessageActions/SubagentExecution.tsx](src/components/MessageActions/SubagentExecution.tsx)):
+
+- **Collapsed State**: Shows subagent name, task, and status icon (spinner/check/X)
+- **Expanded State**: Displays nested tool calls, activity logs, and final summary/error
+- **Status Indicators**:
+  - `running`: Animated spinner
+  - `success`: Green checkmark + summary
+  - `error`: Red X + error message
+
+Streaming events:
+- `subagent_started`: Appends `<SubagentExecution>` markup with running status
+- `subagent_data`: Nested events (tool calls) forwarded to parent with subagent context
+- `subagent_completed`/`subagent_error`: Updates markup with final status and results
+
+### Tool Restrictions
+
+Each subagent has a whitelist of allowed tools enforced at execution time:
+
+```typescript
+// Example: Deep Research subagent
+allowedTools: [
+  'web_search',
+  'url_summarization',
+  'image_search',
+  'youtube_transcript',
+  'pdf_loader'
+]
+```
+
+Tools are filtered in `SubagentExecutor.getFilteredTools()` before passing to SimplifiedAgent. This ensures:
+- Security: Subagents cannot escalate privileges
+- Focus: Forces specialization on assigned tasks
+- Efficiency: Reduces decision space for faster execution
+
+### Configuration
+
+Subagent definitions are hardcoded in [src/lib/search/subagents/definitions.ts](src/lib/search/subagents/definitions.ts):
+
+```typescript
+export interface SubagentDefinition {
+  name: string;                // Display name
+  description: string;         // Purpose description
+  systemPrompt: string;        // Custom system prompt
+  allowedTools: string[];      // Whitelist of tool names
+  useSystemModel: boolean;     // true = System Model, false = Chat Model
+  maxTurns: number;            // Max iterations before forced stop
+  parallelizable: boolean;     // Can run concurrently with others
+}
+```
+
+No database storage or user-created subagents in this implementation - all definitions live in code.
+
+### Decomposition Logic
+
+The decomposition prompt ([src/lib/prompts/subagents/decomposer.ts](src/lib/prompts/subagents/decomposer.ts)) guides the System Model to:
+
+- Identify queries with multiple distinct aspects
+- Recognize when both web research AND file analysis are needed
+- Avoid decomposition for simple, conversational queries
+- Limit to 2-3 subtasks for optimal performance
+
+Example decomposition:
+```json
+{
+  "needsDecomposition": true,
+  "reasoning": "Query requires both web research on quantum computing and analysis of uploaded research papers",
+  "subtasks": [
+    {
+      "subagent": "deep_research",
+      "task": "Research current state of quantum computing applications in cryptography"
+    },
+    {
+      "subagent": "file_analyzer",
+      "task": "Extract relevant quantum computing findings from the uploaded papers"
+    }
+  ]
+}
+```
+
+### Model Usage Routing
+
+- **Chat Model**: Final synthesis, agent-level decisions, user-facing responses
+- **System Model**: Decomposition analysis, tool internals (within subagents if `useSystemModel: true`)
+
+Models are selected per-subagent via the `useSystemModel` flag:
+- `true`: Use cheaper/faster System Model (good for extraction tasks)
+- `false`: Use more capable Chat Model (needed for reasoning/synthesis)
+
+### Integration Points
+
+The supervisor is invoked from AgentSearch ([src/lib/search/agentSearch.ts](src/lib/search/agentSearch.ts)):
+
+```typescript
+await executeWithSubagents(
+  query,
+  history,
+  chatLlm,
+  systemLlm,
+  embeddings,
+  emitter,
+  signal,
+  messageId,
+  fileIds,
+  agentMode,
+  personaInstructions,
+  retrievalSignal,
+  userLocation,
+  userProfile
+);
+```
+
+Fallback behavior:
+- If decomposition not needed: calls standard `SimplifiedAgent`
+- If error during subagent execution: falls back to standard agent
+- Ensures robustness without breaking existing functionality
+
+### Event Flow
+
+```
+API Route → AgentSearch → Supervisor (executeWithSubagents)
+                             ↓
+                      [Decomposition?]
+                       ↓           ↓
+                     No           Yes
+                       ↓           ↓
+               SimplifiedAgent   SubagentExecutor(s)
+                       ↓           ↓
+                   EventEmitter ← Isolated EventEmitters
+                       ↓           ↓
+                  ChatWindow ← subagent_* events
+                       ↓
+               MarkdownRenderer (SubagentExecution component)
+```
+
+### Performance Considerations
+
+- **Parallel Execution**: Subagents run concurrently via `Promise.all()` to minimize latency
+- **Token Budget**: Each subagent sees only last 5 messages (limited context)
+- **Model Selection**: `useSystemModel: true` for extraction tasks reduces costs
+- **Max Turns**: Configurable per subagent to prevent runaway execution
+
+### Limitations
+
+- **No Persistence**: Subagent executions are ephemeral, not stored in database
+- **No User Creation**: Cannot define custom subagents via UI (hardcoded only)
+- **No Chaining**: Subagents cannot invoke other subagents (flat hierarchy)
+- **Focus Modes**: Decomposition currently only applies to `webSearch` and `localResearch` modes
+
 ## Core Commands
 
 - **Development**: `npm run dev` (uses Turbopack for faster builds)

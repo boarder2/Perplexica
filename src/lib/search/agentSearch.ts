@@ -5,13 +5,19 @@ import { EventEmitter } from 'events';
 import { SimplifiedAgent } from './simplifiedAgent';
 import { CachedEmbeddings } from '../utils/cachedEmbeddings';
 import { PersonalizationContext } from './metaSearchAgent';
+import { executeWithSubagents } from './subagents/supervisor';
 
 /**
- * Agent Search class implementing LangGraph Supervisor pattern
+ * Agent Search class implementing LangGraph Supervisor pattern with subagent support
  */
 export class AgentSearch {
   private emitter: EventEmitter;
   private agentMode: string;
+  private chatLlm: BaseChatModel;
+  private systemLlm: BaseChatModel;
+  private embeddings: CachedEmbeddings;
+  private personaInstructions: string;
+  private signal: AbortSignal;
 
   // Simplified agent experimental implementation
   private simplifiedAgent: SimplifiedAgent;
@@ -31,6 +37,11 @@ export class AgentSearch {
   ) {
     this.emitter = emitter;
     this.agentMode = agentMode;
+    this.chatLlm = chatLlm;
+    this.systemLlm = systemLlm;
+    this.embeddings = embeddings;
+    this.personaInstructions = personaInstructions;
+    this.signal = signal;
 
     // Initialize simplified agent (experimental)
     this.simplifiedAgent = new SimplifiedAgent(
@@ -48,21 +59,32 @@ export class AgentSearch {
   }
 
   /**
-   * Execute the agent search workflow
+   * Execute the agent search workflow with subagent support
    */
   async searchAndAnswer(
     query: string,
     history: BaseMessage[] = [],
     fileIds: string[] = [],
   ) {
-    console.log('AgentSearch: Using simplified agent implementation');
+    console.log('AgentSearch: Using supervisor with subagent support');
 
-    // Delegate to simplified agent with agentMode
-    await this.simplifiedAgent.searchAndAnswer(
+    // Use supervisor to determine if subagents should be used
+    // Falls back to standard SimplifiedAgent if not needed
+    await executeWithSubagents(
       query,
       history,
+      this.chatLlm,
+      this.systemLlm,
+      this.embeddings,
+      this.emitter,
+      this.signal,
+      this.messageId || 'unknown',
       fileIds,
       this.agentMode,
+      this.personaInstructions,
+      this.retrievalSignal,
+      this.personalization?.location,
+      this.personalization?.profile,
     );
   }
 }

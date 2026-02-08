@@ -121,23 +121,30 @@ export class SimplifiedAgent {
     messagesCount?: number,
     query?: string,
     firefoxAIDetected?: boolean,
+    customTools?: any[],
+    customSystemPrompt?: string,
   ) {
     // Select appropriate tools based on focus mode and available files
     // Special case: Firefox AI detection disables tools for this turn
-    const tools = firefoxAIDetected
-      ? []
-      : this.getToolsForFocusMode(focusMode, fileIds);
+    // Special case: custom tools override (for subagents)
+    const tools = customTools
+      ? customTools
+      : firefoxAIDetected
+        ? []
+        : this.getToolsForFocusMode(focusMode, fileIds);
 
     // Cache tool names for usage attribution heuristics
     this.currentToolNames = tools.map((t) => t.name.toLowerCase());
 
-    const enhancedSystemPrompt = this.createEnhancedSystemPrompt(
-      focusMode,
-      fileIds,
-      messagesCount,
-      query,
-      firefoxAIDetected,
-    );
+    const enhancedSystemPrompt = customSystemPrompt
+      ? customSystemPrompt
+      : this.createEnhancedSystemPrompt(
+          focusMode,
+          fileIds,
+          messagesCount,
+          query,
+          firefoxAIDetected,
+        );
 
     try {
       // Create the React agent with custom state
@@ -269,6 +276,8 @@ export class SimplifiedAgent {
     history: BaseMessage[] = [],
     fileIds: string[] = [],
     focusMode: string = 'webSearch',
+    customTools?: any[],
+    customSystemPrompt?: string,
   ): Promise<void> {
     try {
       console.log(`SimplifiedAgent: Starting search for query: "${query}"`);
@@ -302,6 +311,8 @@ export class SimplifiedAgent {
         llmMessagesCount,
         query,
         firefoxAIDetected,
+        customTools,
+        customSystemPrompt,
       );
 
       // Prepare initial state

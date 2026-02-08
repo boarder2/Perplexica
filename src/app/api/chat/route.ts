@@ -202,6 +202,68 @@ const handleEmitterEvents = async (
           },
         );
       }
+    } else if (
+      parsedData.type === 'subagent_started' ||
+      parsedData.type === 'subagent_completed' ||
+      parsedData.type === 'subagent_error' ||
+      parsedData.type === 'subagent_data'
+    ) {
+      // Forward subagent events to client
+      console.log('API: Forwarding subagent event:', parsedData.type);
+      writer.write(
+        encoder.encode(
+          JSON.stringify({
+            ...parsedData,
+            messageId: aiMessageId,
+          }) + '\n',
+        ),
+      );
+      
+      // Update received message for persistence if needed
+      if (parsedData.type === 'subagent_started') {
+        const markup = `<SubagentExecution id="${parsedData.executionId}" name="${parsedData.name}" task="${parsedData.task}" status="running"></SubagentExecution>\n`;
+        recievedMessage += markup;
+      } else if (
+        parsedData.type === 'subagent_completed' ||
+        parsedData.type === 'subagent_error'
+      ) {
+        // Update the SubagentExecution markup in received message
+        const status = parsedData.type === 'subagent_completed' ? 'success' : 'error';
+        const executionId = parsedData.id;
+        const subagentRegex = new RegExp(
+          `<SubagentExecution\\s+id="${executionId}"([^>]*)>(.*?)<\\/SubagentExecution>`,
+          'gs',
+        );
+        recievedMessage = recievedMessage.replace(
+          subagentRegex,
+          (match, attrs, innerContent) => {
+            let updatedAttrs = attrs
+              .replace(/status="[^"]*"/, `status="${status}"`)
+              .trim();
+            if (!updatedAttrs.includes('status=')) {
+              updatedAttrs += ` status="${status}"`;
+            }
+            if (parsedData.summary && status === 'success') {
+              const escapedSummary = parsedData.summary
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+              updatedAttrs += ` summary="${escapedSummary}"`;
+            }
+            if (parsedData.error && status === 'error') {
+              const escapedError = parsedData.error
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+              updatedAttrs += ` error="${escapedError}"`;
+            }
+            // Preserve inner content (ToolCall markup)
+            return `<SubagentExecution ${updatedAttrs}>${innerContent}</SubagentExecution>`;
+          },
+        );
+      }
     }
   });
 
