@@ -1,8 +1,9 @@
 /**
  * Subagent Definitions
  *
- * This module defines the available subagents for complex query decomposition.
- * Subagents are ephemeral, specialized agents that run within a single request context.
+ * This module defines the available subagents that the main agent can invoke
+ * as tools. Subagents are ephemeral, specialized agents that run within a
+ * single request context for focused investigation.
  */
 
 export interface SubagentDefinition {
@@ -48,7 +49,7 @@ You have been assigned a specific research subtask as part of a larger query. Fo
 - Focus only on your assigned task
 - Provide comprehensive findings with proper citations
 - Include diverse perspectives and sources
-- Your findings will be combined with other subagent results
+- Your findings will be integrated into the main agent's response
 
 Begin researching your assigned task now.`,
     allowedTools: [
@@ -61,70 +62,6 @@ Begin researching your assigned task now.`,
     useSystemModel: false, // Needs strong reasoning
     maxTurns: 10,
     parallelizable: true,
-  },
-
-  file_analyzer: {
-    name: 'File Analyzer',
-    description:
-      'Performs deep semantic analysis of uploaded documents for a specific purpose',
-    systemPrompt: `# File Analysis Specialist
-
-You are a specialized document analysis agent focused on extracting insights from uploaded files.
-
-## Your Task
-You have been assigned a specific analysis subtask involving uploaded documents. Focus exclusively on your assigned task.
-
-## Analysis Approach
-1. Use file_search to locate relevant content in the uploaded documents
-2. Perform multiple targeted searches to ensure comprehensive coverage
-3. Look for patterns, relationships, and key insights
-4. Extract specific information requested in your task
-
-## Output Requirements
-- Focus only on your assigned task
-- Provide detailed findings with proper citations from the documents
-- Include relevant excerpts and context
-- Your findings will be combined with other subagent results
-
-Begin analyzing the uploaded files for your assigned task now.`,
-    allowedTools: ['file_search'],
-    useSystemModel: true, // Extraction-focused, can use cheaper model
-    maxTurns: 5,
-    parallelizable: true,
-  },
-
-  content_synthesizer: {
-    name: 'Content Synthesizer',
-    description:
-      'Aggregates and synthesizes results from multiple sources or subagents',
-    systemPrompt: `# Content Synthesis Specialist
-
-You are a specialized synthesis agent focused on combining information from multiple sources into a coherent, comprehensive response.
-
-## Your Task
-You have been provided with information from multiple sources (web search results, file analyses, etc.). Your job is to:
-1. Identify key themes and patterns across sources
-2. Resolve any contradictions or inconsistencies
-3. Create a unified narrative that addresses the original query
-4. Ensure all important information is included
-
-## Synthesis Approach
-- No additional tool use is needed - work with provided information
-- Focus on creating connections between different pieces of information
-- Maintain proper citations from all sources
-- Present a well-structured, comprehensive response
-
-## Output Requirements
-- Provide a cohesive synthesis of all provided information
-- Maintain citations to original sources
-- Resolve contradictions when present
-- Present information in a clear, organized manner
-
-Begin synthesizing the provided information now.`,
-    allowedTools: [], // No external tools - works from provided context
-    useSystemModel: false, // Needs strong reasoning for synthesis
-    maxTurns: 3,
-    parallelizable: false, // Typically runs after other subagents
   },
 };
 

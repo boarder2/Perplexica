@@ -209,7 +209,7 @@ const handleEmitterEvents = async (
       parsedData.type === 'subagent_data'
     ) {
       // Forward subagent events to client
-      console.log('API: Forwarding subagent event:', parsedData.type);
+      // console.log('API: Forwarding subagent event:', parsedData.type);
       writer.write(
         encoder.encode(
           JSON.stringify({

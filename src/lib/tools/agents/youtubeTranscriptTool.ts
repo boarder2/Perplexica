@@ -30,6 +30,24 @@ export const youtubeTranscriptTool = tool(
   ) => {
     const { videoUrl } = input;
 
+    // Check for cancellation early
+    const retrievalSignal: AbortSignal | undefined =
+      config?.configurable?.retrievalSignal;
+    if (retrievalSignal?.aborted || config?.signal?.aborted) {
+      console.log('[youtubeTranscriptTool] Operation cancelled');
+      return new Command({
+        update: {
+          relevantDocuments: [],
+          messages: [
+            new ToolMessage({
+              content: 'YouTube transcript retrieval cancelled.',
+              tool_call_id: (config as any)?.toolCall.id,
+            }),
+          ],
+        },
+      });
+    }
+
     console.log(
       `[youtubeTranscriptTool] Retrieving transcript for video: "${videoUrl}"`,
     );

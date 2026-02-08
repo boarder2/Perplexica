@@ -48,6 +48,26 @@ export const fileSearchTool = tool(
       const currentState = getCurrentTaskInput() as SimplifiedAgentStateType;
       let currentDocCount = currentState.relevantDocuments.length;
 
+      // Get signal for cancellation support
+      const retrievalSignal: AbortSignal | undefined =
+        config?.configurable?.retrievalSignal;
+
+      // Check for cancellation early
+      if (retrievalSignal?.aborted || config?.signal?.aborted) {
+        console.log('FileSearchTool: Operation cancelled');
+        return new Command({
+          update: {
+            relevantDocuments: [],
+            messages: [
+              new ToolMessage({
+                content: 'File search cancelled.',
+                tool_call_id: (config as any)?.toolCall.id,
+              }),
+            ],
+          },
+        });
+      }
+
       // Get fileIds from config (provided by the agent)
       const fileIds: string[] = config?.configurable?.fileIds || [];
 

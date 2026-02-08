@@ -34,6 +34,24 @@ export const pdfLoaderTool = tool(
     try {
       const { pdfUrl } = input;
 
+      // Check for cancellation early
+      const retrievalSignal: AbortSignal | undefined =
+        config?.configurable?.retrievalSignal;
+      if (retrievalSignal?.aborted || config?.signal?.aborted) {
+        console.log('[pdfLoaderTool] Operation cancelled');
+        return new Command({
+          update: {
+            relevantDocuments: [],
+            messages: [
+              new ToolMessage({
+                content: 'PDF loading cancelled.',
+                tool_call_id: (config as any)?.toolCall.id,
+              }),
+            ],
+          },
+        });
+      }
+
       const currentState = getCurrentTaskInput() as SimplifiedAgentStateType;
 
       console.log(`[pdfLoaderTool] Retrieving content for PDF: "${pdfUrl}"`);

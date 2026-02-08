@@ -1,25 +1,20 @@
-import { Embeddings } from '@langchain/core/embeddings';
-import { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import { BaseMessage } from '@langchain/core/messages';
 import { EventEmitter } from 'events';
 import { SimplifiedAgent } from './simplifiedAgent';
 import { CachedEmbeddings } from '../utils/cachedEmbeddings';
 import { PersonalizationContext } from './metaSearchAgent';
-import { executeWithSubagents } from './subagents/supervisor';
+import { BaseChatModel } from '@langchain/core/language_models/chat_models';
 
 /**
- * Agent Search class implementing LangGraph Supervisor pattern with subagent support
+ * Agent Search class — runs SimplifiedAgent directly with tool-based subagent support.
+ *
+ * The main agent has access to a `deep_research` tool that it can invoke on demand
+ * when it discovers a query requires deeper investigation. This replaces the previous
+ * front-loaded supervisor pattern that added an LLM call to every query.
  */
 export class AgentSearch {
   private emitter: EventEmitter;
   private agentMode: string;
-  private chatLlm: BaseChatModel;
-  private systemLlm: BaseChatModel;
-  private embeddings: CachedEmbeddings;
-  private personaInstructions: string;
-  private signal: AbortSignal;
-
-  // Simplified agent experimental implementation
   private simplifiedAgent: SimplifiedAgent;
 
   constructor(
@@ -37,13 +32,7 @@ export class AgentSearch {
   ) {
     this.emitter = emitter;
     this.agentMode = agentMode;
-    this.chatLlm = chatLlm;
-    this.systemLlm = systemLlm;
-    this.embeddings = embeddings;
-    this.personaInstructions = personaInstructions;
-    this.signal = signal;
 
-    // Initialize simplified agent (experimental)
     this.simplifiedAgent = new SimplifiedAgent(
       chatLlm,
       systemLlm,
@@ -59,32 +48,22 @@ export class AgentSearch {
   }
 
   /**
-   * Execute the agent search workflow with subagent support
+   * Execute the agent search workflow.
+   * The agent can invoke deep_research as a tool when it determines
+   * a sub-problem needs comprehensive investigation.
    */
   async searchAndAnswer(
     query: string,
     history: BaseMessage[] = [],
     fileIds: string[] = [],
   ) {
-    console.log('AgentSearch: Using supervisor with subagent support');
+    console.log('AgentSearch: Running SimplifiedAgent with deep_research tool');
 
-    // Use supervisor to determine if subagents should be used
-    // Falls back to standard SimplifiedAgent if not needed
-    await executeWithSubagents(
+    await this.simplifiedAgent.searchAndAnswer(
       query,
       history,
-      this.chatLlm,
-      this.systemLlm,
-      this.embeddings,
-      this.emitter,
-      this.signal,
-      this.messageId || 'unknown',
       fileIds,
       this.agentMode,
-      this.personaInstructions,
-      this.retrievalSignal,
-      this.personalization?.location,
-      this.personalization?.profile,
     );
   }
 }

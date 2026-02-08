@@ -26,6 +26,7 @@ export class SubagentExecutor {
   private parentEmitter: EventEmitter;
   private signal: AbortSignal;
   private messageId: string;
+  private retrievalSignal?: AbortSignal;
 
   constructor(
     definition: SubagentDefinition,
@@ -35,6 +36,7 @@ export class SubagentExecutor {
     parentEmitter: EventEmitter,
     signal: AbortSignal,
     messageId: string,
+    retrievalSignal?: AbortSignal,
   ) {
     this.definition = definition;
     this.chatLlm = chatLlm;
@@ -43,6 +45,7 @@ export class SubagentExecutor {
     this.parentEmitter = parentEmitter;
     this.signal = signal;
     this.messageId = messageId;
+    this.retrievalSignal = retrievalSignal;
   }
 
   /**
@@ -88,8 +91,12 @@ export class SubagentExecutor {
           collectedData.responseText += parsed.data || '';
         }
 
-        // Note: Documents are accumulated in SimplifiedAgentState
-        // We'll extract them from the final state if possible
+        // Collect documents from sources_added events
+        if (parsed.type === 'sources_added' || parsed.type === 'sources') {
+          if (Array.isArray(parsed.data)) {
+            collectedData.documents.push(...parsed.data);
+          }
+        }
       });
 
       // Select the appropriate model based on subagent configuration
@@ -106,7 +113,7 @@ export class SubagentExecutor {
         this.definition.systemPrompt, // Custom system prompt
         this.signal,
         `${this.messageId}_${executionId}`,
-        this.signal, // Reuse for retrieval signal
+        this.retrievalSignal || this.signal, // Use retrievalSignal if available, fallback to signal
       );
 
       // Limit context to avoid token bloat

@@ -101,6 +101,26 @@ ${
     - Use when the user references a PDF URL or when web search results include URLs to PDF files (A URL starting with http(s) and ending in .pdf)
     - Provide the **exact** URL of the PDF document to retrieve its content
     - The tool returns the text content of the PDF
+  3.5. **Deep Research**: (\`deep_research\` tool) Spawn a focused research subagent for comprehensive investigation
+    - **Primary use case**: Break down complex queries into smaller, focused research tasks that can be investigated independently
+    - Use when you discover during your research that a specific aspect requires significantly more investigation than a single web search can provide
+    - Also use when the user explicitly asks for comprehensive, detailed, or well-researched answers on complex topics
+    - Provide a clear, specific task description that defines exactly what to research
+    - The subagent will independently perform multiple searches, retrieve sources, and synthesize findings
+    - The subagent's findings and documents will be returned to you for integration into your final response
+    - **When to use**:
+      - **Query decomposition**: Break complex multi-part queries into focused sub-questions (e.g., "Compare X and Y" → spawn one deep_research for X, another for Y)
+      - **Parallel investigation**: When different aspects of a query need independent, thorough research
+      - Multi-faceted queries where one aspect needs deep, independent investigation
+      - When initial search results reveal unexpected complexity requiring thorough research
+      - Comparative analysis requiring thorough investigation of multiple subjects
+      - When the user explicitly asks for a detailed or well-researched response
+    - **When NOT to use**:
+      - Simple factual questions that can be answered with 1-2 web searches
+      - When you already have sufficient information to answer
+      - For every query -- this is an expensive operation, use it selectively
+    - **LIMIT**: Use deep_research at most 4 times per response
+    - **Pattern**: You can invoke multiple deep_research tasks (up to 4) to decompose complex queries into parallel investigations
 4. **Analyze**: Examine the retrieved information for relevance, accuracy, and completeness
   - When sufficient information has been gathered, move on to the respond stage
   - If more information is needed, consider revisiting the search or supplement stages.${

@@ -15,6 +15,7 @@ import { imageSearchTool } from './imageSearchTool';
 import { urlSummarizationTool } from './urlSummarizationTool';
 import { youtubeTranscriptTool } from './youtubeTranscriptTool';
 import { pdfLoaderTool } from './pdfLoaderTool';
+import { deepResearchTool } from './deepResearchTool';
 
 export { taskManagerTool };
 export { simpleWebSearchTool };
@@ -22,36 +23,33 @@ export { fileSearchTool };
 export { imageSearchTool };
 export { youtubeTranscriptTool };
 export { pdfLoaderTool };
+export { deepResearchTool };
 
 // Array containing all available agent tools for the simplified chat agent
 // This will be used by the createReactAgent implementation
 export const allAgentTools = [
   //taskManagerTool,
-  //webSearchTool,
   simpleWebSearchTool,
   fileSearchTool,
   urlSummarizationTool,
   imageSearchTool,
   youtubeTranscriptTool,
   pdfLoaderTool,
+  deepResearchTool,
 ];
 
 // Export tool categories for selective tool loading based on focus mode
 export const webSearchTools = [
-  //webSearchTool,
   simpleWebSearchTool,
   urlSummarizationTool,
   imageSearchTool,
   youtubeTranscriptTool,
   pdfLoaderTool,
-  // analyzerTool,
-  // synthesizerTool,
+  deepResearchTool,
 ];
 
 export const fileSearchTools = [
   fileSearchTool,
-  // analyzerTool,
-  // synthesizerTool,
 ];
 
 // Core tools that are always available

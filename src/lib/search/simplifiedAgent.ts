@@ -371,11 +371,17 @@ export class SimplifiedAgent {
                 metadata,
                 runName,
               });
-              toolCalls[runId] = runName || tool.name || 'unknown';
+              const toolName = runName || tool.name || 'unknown';
+              toolCalls[runId] = toolName;
+
+              // Skip generic tool events for deep_research (has specialized SubagentExecution rendering)
+              if (toolName === 'deep_research') {
+                return;
+              }
 
               // Emit a tool_call_started event so UI can display a running state spinner.
               try {
-                const type = (runName || tool.name || 'unknown').trim();
+                const type = toolName.trim();
                 // We only include lightweight identifying args for now; avoid large payloads.
                 let extraAttr = '';
                 try {
@@ -438,9 +444,17 @@ export class SimplifiedAgent {
                 tags,
               });
 
+              const toolName = toolCalls[runId];
+
+              // Skip generic tool events for deep_research (has specialized SubagentExecution rendering)
+              if (toolName === 'deep_research') {
+                delete toolCalls[runId];
+                return;
+              }
+
               // If youtube transcript tool, capture videoId for potential future UI enhancements
               let extra: Record<string, string> | undefined;
-              if (toolCalls[runId] === 'youtube_transcript') {
+              if (toolName === 'youtube_transcript') {
                 const videoId =
                   output?.update?.relevantDocuments?.[0]?.metadata?.source;
                 if (videoId) {
@@ -473,6 +487,14 @@ export class SimplifiedAgent {
                 parentRunId,
                 tags,
               });
+
+              const toolName = toolCalls[runId];
+
+              // Skip generic tool events for deep_research (has specialized SubagentExecution rendering)
+              if (toolName === 'deep_research') {
+                delete toolCalls[runId];
+                return;
+              }
 
               const message =
                 (err && (err.message || err.toString())) ||
@@ -599,6 +621,13 @@ export class SimplifiedAgent {
                 ) {
                   collectedDocuments.push(...item.update.relevantDocuments);
                   emitNewDocs(item.update.relevantDocuments);
+
+                  // Log for deep_research to verify sources are being emitted
+                  if (event.name === 'deep_research') {
+                    console.log(
+                      `SimplifiedAgent: deep_research returned ${item.update.relevantDocuments.length} documents`,
+                    );
+                  }
                 }
               }
             }
