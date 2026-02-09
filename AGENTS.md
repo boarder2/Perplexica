@@ -40,7 +40,7 @@ The system works through these main steps:
 - **Orchestration & Agents**:
   - `MetaSearchAgent` router — routes queries to the appropriate focus mode handler. See `src/lib/search/metaSearchAgent.ts` and handlers in `src/lib/search/index.ts`.
   - `SimplifiedAgent` (LangGraph React Agent) — single, unified agent that uses tools to perform web search, local file search, URL summarization, and more. See `src/lib/search/simplifiedAgent.ts` with state in `src/lib/state/chatAgentState.ts` and prompts in `src/lib/prompts/simplifiedAgent/*`.
-    - Tools used by the agent live in `src/lib/tools/agents` (e.g., `web_search`, `file_search`, `url_summarization`, `image_search`).
+    - Tools used by the agent live in `src/lib/tools/agents` (e.g., `web_search`, `file_search`, `url_summarization`, `image_search`, `todo_list`).
   - **Personalization context**: Location and About Me drafts live in localStorage and are forwarded as-is when the user enables the toggle. Downstream agents receive this context via `MetaSearchAgent` and adapt prompts without leaking About Me into external queries. Prompt templates render a dedicated `## Personalization` section with guardrails so guidance stays separate from persona formatting.
 
 #### Tool Call Lifecycle Events (UI Integration)
@@ -52,6 +52,20 @@ The `SimplifiedAgent` now emits granular lifecycle events for each tool executio
 | `tool_call_started` | Immediately when a tool run begins (LangChain `handleToolStart`) | `{ data: { content: "<ToolCall … status=\"running\" toolCallId=\"RUN_ID\" …></ToolCall>", toolCallId, status: "running" } }` | Appends a ToolCall widget with spinner                                                                         |
 | `tool_call_success` | On successful completion (`handleToolEnd`)                       | `{ data: { toolCallId, status: "success", extra?: { [k: string]: string } } }`                                               | Replaces the widget status icon with green check; merges any `extra` attributes into existing `<ToolCall>` tag |
 | `tool_call_error`   | On exception (`handleToolError`)                                 | `{ data: { toolCallId, status: "error", error: "message" } }`                                                                | Replaces spinner with red X and shows error text                                                               |
+
+#### Todo List Events (Research Planning)
+
+The `todo_list` tool emits `todo_update` events for research progress tracking. Unlike other tools, `todo_list` skips generic `tool_call_started/success/error` events and uses its own rendering via the `TodoWidget` component.
+
+| Event Type     | When Emitted                          | Payload                                                        | UI Behavior                                                          |
+| -------------- | ------------------------------------- | -------------------------------------------------------------- | -------------------------------------------------------------------- |
+| `todo_update`  | Each time the agent calls `todo_list` | `{ data: { todos: [{ content, status }] } }`                  | Updates the TodoWidget above the message input with current progress |
+
+- The TodoWidget (`src/components/TodoWidget.tsx`) is a collapsible bar above the message input
+- Collapsed: shows "Tasks: X/Y complete - [current task]"
+- Expanded: shows all items with status icons (pending/in_progress/completed)
+- Transient: the widget clears when the response completes (not persisted in message content)
+- Only used for thorough/complex research, not simple queries
 
 Implementation details:
 
@@ -108,6 +122,7 @@ Notes / Constraints:
     - `youtube_transcript`: YouTube video transcript retrieval
     - `pdf_loader`: PDF document content extraction
     - `deep_research`: Spawns a focused research subagent for comprehensive investigation
+    - `todo_list`: Research planning and progress tracking (direct state management, no LLM calls)
 
 ## Focus Modes
 
@@ -131,11 +146,21 @@ The main `SimplifiedAgent` has access to a `deep_research` tool that it can invo
 ### Available Subagents
 
 1. **Deep Research** (`deep_research`)
-   - Purpose: Comprehensive multi-source web research on a specific aspect
+   - Purpose: Focused investigation of a specific, narrow aspect of a larger question
    - Tools: `web_search`, `url_summarization`, `image_search`, `youtube_transcript`, `pdf_loader`
    - Model: Chat Model (needs reasoning capability)
    - Invoked by: Main agent via `deep_research` tool
-   - Use Cases: Complex research topics, multi-faceted queries, user explicitly requests detailed research
+   - **Key Principle**: Each call should research ONE specific aspect, not try to answer the entire user question
+   - Use Cases:
+     - Iterative research: discover scope first, then research specific items in follow-up calls
+     - Multi-part queries with 2+ distinct questions (each aspect gets its own subagent call)
+     - Comparative analysis ("compare X and Y" → separate subagents for X and Y)
+     - Comprehensive queries asking about multiple aspects ("tell me everything about X including Y, Z, W")
+     - Complex research topics where user explicitly requests detailed research
+   - Iterative Pattern:
+     1. Use an initial deep_research (or web_search) to discover the scope/landscape
+     2. Based on findings, launch targeted deep_research calls for specific items or groups — task descriptions MUST include the specific entities/items discovered (e.g., name the actual sports, providers, or categories found), never use generic references like "remaining items" or "all finished sports"
+     3. Synthesize all findings into a comprehensive final answer
 
 ### Architecture
 
@@ -194,16 +219,18 @@ User Query → SimplifiedAgent (with all tools including deep_research)
 
 Subagent activity is displayed in real-time via the `SubagentExecution` component ([src/components/MessageActions/SubagentExecution.tsx](src/components/MessageActions/SubagentExecution.tsx)):
 
-- **Collapsed State**: Shows subagent name, task, and status icon (spinner/check/X)
-- **Expanded State**: Displays nested tool calls, activity logs, and final summary/error
+- **Collapsed State**: Shows subagent name, task (truncated), and status icon (spinner/check/X)
+- **Expanded State**: Shows full task instructions (not truncated), nested tool calls, collapsible response, and error (if any)
+- **Tool Calls**: Always visible when present, regardless of subagent status (running, success, or error). Tool calls are persisted in the message content so they survive page reloads and history loading.
+- **Response**: A single unified "Response" section (collapsible) that shows the subagent's markdown output. Uses the final summary when available, falls back to the streaming response text during execution. There is no separate "Result" display — it's all one consistent section.
 - **Status Indicators**:
   - `running`: Animated spinner
-  - `success`: Green checkmark + summary
+  - `success`: Green checkmark
   - `error`: Red X + error message
 
 Streaming events:
 - `subagent_started`: Appends `<SubagentExecution>` markup with running status
-- `subagent_data`: Nested events (tool calls) forwarded to parent with subagent context
+- `subagent_data`: Nested events (tool calls, response tokens) forwarded to parent with subagent context; tool call markup is persisted in both client state and server-side `recievedMessage` for history
 - `subagent_completed`/`subagent_error`: Updates markup with final status and results
 
 ### Tool Restrictions
@@ -267,7 +294,14 @@ API Route → AgentSearch → SimplifiedAgent
 - **No upfront overhead**: Simple queries skip decomposition entirely
 - **Token Budget**: Each subagent sees only last 5 messages (limited context)
 - **Max Turns**: Configurable per subagent to prevent runaway execution
-- **Prompt guidance**: Main agent is instructed to use deep_research at most 2 times per response
+- **Prompt guidance**: Main agent is instructed to:
+  - Use deep_research iteratively: discover scope first, then research specific aspects in follow-up calls
+  - Each deep_research call should focus on one narrow aspect, not the entire question
+  - Follow-up task descriptions must include specific data from prior results (e.g., name the actual entities found), never generic references like "remaining items"
+  - Decompose multi-part queries into 2-4 focused deep_research investigations
+  - Use deep_research at most 4 times per response (can span multiple turns)
+  - Parallelize when aspects are already known; sequence when scope must be discovered first
+  - Skip deep_research for simple factual questions answerable with 1-2 web searches
 
 ### Limitations
 

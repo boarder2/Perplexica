@@ -82,6 +82,10 @@ export const SubagentExecution: React.FC<SubagentExecutionProps> = ({
   // Children contains the ToolCall markup
   const hasActivity = children && React.Children.count(children) > 0;
   const decodedResponse = responseText ? decodeHtmlEntities(responseText) : '';
+  const decodedSummary = summary ? decodeHtmlEntities(summary) : '';
+
+  // Unified response content: prefer summary (final) over responseText (streaming)
+  const responseContent = decodedSummary || decodedResponse;
 
   const getStatusIcon = () => {
     switch (status) {
@@ -126,7 +130,7 @@ export const SubagentExecution: React.FC<SubagentExecutionProps> = ({
             <span className="font-semibold text-sm">{name || 'Subagent'}</span>
           </div>
           {task && (
-            <div className="text-xs text-fg/70 mt-1 truncate">
+            <div className={cn("text-xs text-fg/70 mt-1", !expanded && "truncate")}>
               {decodeHtmlEntities(task)}
             </div>
           )}
@@ -144,7 +148,7 @@ export const SubagentExecution: React.FC<SubagentExecutionProps> = ({
       {/* Expandable content */}
       {expanded && (
         <div className="px-4 pb-3 pt-1 border-t border-surface-2 space-y-3 max-h-[33vh] overflow-y-auto">
-          {/* Show tool calls */}
+          {/* Show tool calls - always visible when present */}
           {hasActivity && (
             <div className="space-y-2">
               <div className="text-xs font-semibold text-fg/70 uppercase tracking-wide">
@@ -156,11 +160,14 @@ export const SubagentExecution: React.FC<SubagentExecutionProps> = ({
             </div>
           )}
 
-          {/* Show accumulated response text */}
-          {decodedResponse && decodedResponse.trim() && status === 'running' && (
+          {/* Unified response display - shows streaming response or final summary */}
+          {responseContent && responseContent.trim() && (
             <div className="space-y-2">
               <button
-                onClick={() => setResponseExpanded(!responseExpanded)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setResponseExpanded(!responseExpanded);
+                }}
                 className="flex items-center gap-2 text-xs font-semibold text-fg/70 uppercase tracking-wide hover:text-fg/90 transition-colors"
               >
                 {responseExpanded ? (
@@ -181,30 +188,9 @@ export const SubagentExecution: React.FC<SubagentExecutionProps> = ({
                   "prose-a:text-accent prose-a:no-underline hover:prose-a:underline",
                   "wrap-break-word"
                 )}>
-                  <Markdown options={responseMarkdownOptions}>{decodedResponse}</Markdown>
+                  <Markdown options={responseMarkdownOptions}>{responseContent}</Markdown>
                 </div>
               )}
-            </div>
-          )}
-
-          {/* Show summary if success */}
-          {status === 'success' && summary && (
-            <div>
-              <div className="text-xs font-semibold text-fg/70 uppercase tracking-wide mb-1">
-                Result
-              </div>
-              <div className={cn(
-                "prose prose-sm prose-invert dark:prose-invert max-w-none",
-                "prose-p:leading-relaxed prose-p:my-2",
-                "prose-headings:font-semibold prose-h1:text-lg prose-h2:text-base prose-h3:text-sm",
-                "prose-ul:my-2 prose-ol:my-2 prose-li:my-1",
-                "prose-strong:font-bold prose-em:italic",
-                "prose-code:bg-surface-2 prose-code:px-1 prose-code:py-0.5 prose-code:rounded",
-                "prose-a:text-accent prose-a:no-underline hover:prose-a:underline",
-                "wrap-break-word"
-              )}>
-                <Markdown options={responseMarkdownOptions}>{decodeHtmlEntities(summary)}</Markdown>
-              </div>
             </div>
           )}
 
@@ -221,7 +207,7 @@ export const SubagentExecution: React.FC<SubagentExecutionProps> = ({
           )}
 
           {/* Show "no activity" if running with no nested data or response */}
-          {status === 'running' && !hasActivity && !decodedResponse && (
+          {status === 'running' && !hasActivity && !responseContent && (
             <div className="text-xs text-fg/50 italic">Starting...</div>
           )}
         </div>

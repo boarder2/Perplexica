@@ -223,6 +223,39 @@ const handleEmitterEvents = async (
       if (parsedData.type === 'subagent_started') {
         const markup = `<SubagentExecution id="${parsedData.executionId}" name="${parsedData.name}" task="${parsedData.task}" status="running"></SubagentExecution>\n`;
         recievedMessage += markup;
+      } else if (parsedData.type === 'subagent_data') {
+        // Persist nested tool call markup inside SubagentExecution tags
+        const nestedEvent = parsedData.data;
+        const executionId = parsedData.subagentId;
+
+        if (nestedEvent?.type === 'tool_call_started' && nestedEvent.data?.content) {
+          // Insert ToolCall markup inside the SubagentExecution tag
+          const subagentRegex = new RegExp(
+            `(<SubagentExecution\\s+id="${executionId}"[^>]*>)(.*?)(</SubagentExecution>)`,
+            'gs',
+          );
+          recievedMessage = recievedMessage.replace(
+            subagentRegex,
+            (match, openTag, content, closeTag) => {
+              return `${openTag}${content}${nestedEvent.data.content}\n${closeTag}`;
+            },
+          );
+        } else if (nestedEvent?.type === 'tool_call_success' && nestedEvent.data?.toolCallId) {
+          recievedMessage = updateToolCallMarkup(
+            recievedMessage,
+            nestedEvent.data.toolCallId,
+            { status: 'success' },
+          );
+        } else if (nestedEvent?.type === 'tool_call_error' && nestedEvent.data?.toolCallId) {
+          recievedMessage = updateToolCallMarkup(
+            recievedMessage,
+            nestedEvent.data.toolCallId,
+            {
+              status: 'error',
+              error: nestedEvent.data.error,
+            },
+          );
+        }
       } else if (
         parsedData.type === 'subagent_completed' ||
         parsedData.type === 'subagent_error'
@@ -264,6 +297,17 @@ const handleEmitterEvents = async (
           },
         );
       }
+    } else if (parsedData.type === 'todo_update') {
+      // Forward todo_update event to client (transient UI, not persisted in message)
+      writer.write(
+        encoder.encode(
+          JSON.stringify({
+            type: 'todo_update',
+            data: parsedData.data,
+            messageId: aiMessageId,
+          }) + '\n',
+        ),
+      );
     }
   });
 

@@ -349,6 +349,10 @@ const ChatWindow = ({ id }: { id?: string }) => {
   const [chatHistory, setChatHistory] = useState<[string, string][]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
 
+  const [todoItems, setTodoItems] = useState<
+    Array<{ content: string; status: string }>
+  >([]);
+
   const [files, setFiles] = useState<File[]>([]);
   const [fileIds, setFileIds] = useState<string[]>([]);
 
@@ -1019,6 +1023,12 @@ const ChatWindow = ({ id }: { id?: string }) => {
         return;
       }
 
+      // Handle todo list updates
+      if (data.type === 'todo_update') {
+        setTodoItems(data.data.todos || []);
+        return;
+      }
+
       if (data.type === 'response') {
         // Add to buffer instead of immediately updating UI
         messageBuffer += data.data;
@@ -1059,9 +1069,10 @@ const ChatWindow = ({ id }: { id?: string }) => {
       }
 
       if (data.type === 'messageEnd') {
-        // Clear analysis progress
+        // Clear analysis progress and todo list
         setAnalysisProgress(null);
         setLiveModelStats(null);
+        setTodoItems([]);
 
         // Ensure final message content is displayed (flush any remaining buffer)
         setMessages((prev) =>
@@ -1356,6 +1367,7 @@ const ChatWindow = ({ id }: { id?: string }) => {
               personalizationLocation={personalizationLocation}
               personalizationAbout={personalizationAbout}
               refreshPersonalization={refreshPersonalization}
+              todoItems={todoItems}
             />
           </>
         ) : (

@@ -4,6 +4,7 @@ import { Fragment, useEffect, useRef, useState } from 'react';
 import { File, Message } from './ChatWindow';
 import MessageBox from './MessageBox';
 import MessageInput from './MessageInput';
+import TodoWidget, { TodoItemData } from './TodoWidget';
 import { Document } from '@langchain/core/documents';
 
 const Chat = ({
@@ -32,6 +33,7 @@ const Chat = ({
   personalizationLocation,
   personalizationAbout,
   refreshPersonalization,
+  todoItems = [],
 }: {
   messages: Message[];
   sendMessage: (
@@ -92,6 +94,7 @@ const Chat = ({
   personalizationLocation?: string;
   personalizationAbout?: string;
   refreshPersonalization?: () => void;
+  todoItems?: TodoItemData[];
 }) => {
   const [isAtBottom, setIsAtBottom] = useState(true);
   const [manuallyScrolledUp, setManuallyScrolledUp] = useState(false);
@@ -306,6 +309,9 @@ const Chat = ({
           </div>
         )}
 
+        {todoItems && todoItems.length > 0 && (
+          <TodoWidget items={todoItems} />
+        )}
         <MessageInput
           firstMessage={messages.length === 0}
           loading={loading}

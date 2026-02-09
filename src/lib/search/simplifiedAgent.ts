@@ -342,7 +342,7 @@ export class SimplifiedAgent {
           userLocation: this.userLocation,
           userProfile: this.userProfile,
         },
-        recursionLimit: 75, // Allow sufficient iterations for tool use
+        recursionLimit: 150, // Increased to handle complex multi-task research with todo_list
         signal: this.retrievalSignal,
         ...getLangfuseCallbacks(),
       };
@@ -374,8 +374,8 @@ export class SimplifiedAgent {
               const toolName = runName || tool.name || 'unknown';
               toolCalls[runId] = toolName;
 
-              // Skip generic tool events for deep_research (has specialized SubagentExecution rendering)
-              if (toolName === 'deep_research') {
+              // Skip generic tool events for deep_research and todo_list (have specialized rendering)
+              if (toolName === 'deep_research' || toolName === 'todo_list') {
                 return;
               }
 
@@ -446,8 +446,8 @@ export class SimplifiedAgent {
 
               const toolName = toolCalls[runId];
 
-              // Skip generic tool events for deep_research (has specialized SubagentExecution rendering)
-              if (toolName === 'deep_research') {
+              // Skip generic tool events for deep_research and todo_list (have specialized rendering)
+              if (toolName === 'deep_research' || toolName === 'todo_list') {
                 delete toolCalls[runId];
                 return;
               }
@@ -490,8 +490,8 @@ export class SimplifiedAgent {
 
               const toolName = toolCalls[runId];
 
-              // Skip generic tool events for deep_research (has specialized SubagentExecution rendering)
-              if (toolName === 'deep_research') {
+              // Skip generic tool events for deep_research and todo_list (have specialized rendering)
+              if (toolName === 'deep_research' || toolName === 'todo_list') {
                 delete toolCalls[runId];
                 return;
               }
