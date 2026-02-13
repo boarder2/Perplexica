@@ -1,9 +1,8 @@
-import { SimplifiedAgentStateType } from '@/lib/state/chatAgentState';
 import { retrieveYoutubeTranscript } from '@/lib/utils/documents';
 import { ToolMessage } from '@langchain/core/messages';
 import { RunnableConfig } from '@langchain/core/runnables';
 import { tool } from '@langchain/core/tools';
-import { Command, getCurrentTaskInput } from '@langchain/langgraph';
+import { Command } from '@langchain/langgraph';
 import { z } from 'zod';
 
 // Schema for YouTube transcript tool input
@@ -41,7 +40,7 @@ export const youtubeTranscriptTool = tool(
           messages: [
             new ToolMessage({
               content: 'YouTube transcript retrieval cancelled.',
-              tool_call_id: (config as any)?.toolCall.id,
+              tool_call_id: (config as unknown as { toolCall: { id: string } })?.toolCall.id,
             }),
           ],
         },
@@ -69,7 +68,7 @@ export const youtubeTranscriptTool = tool(
             content: JSON.stringify({
               document: [doc],
             }),
-            tool_call_id: (config as any)?.toolCall.id,
+            tool_call_id: (config as unknown as { toolCall: { id: string } })?.toolCall.id,
           }),
         ],
       },

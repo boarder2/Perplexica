@@ -57,9 +57,9 @@ The `SimplifiedAgent` now emits granular lifecycle events for each tool executio
 
 The `todo_list` tool emits `todo_update` events for research progress tracking. Unlike other tools, `todo_list` skips generic `tool_call_started/success/error` events and uses its own rendering via the `TodoWidget` component.
 
-| Event Type     | When Emitted                          | Payload                                                        | UI Behavior                                                          |
-| -------------- | ------------------------------------- | -------------------------------------------------------------- | -------------------------------------------------------------------- |
-| `todo_update`  | Each time the agent calls `todo_list` | `{ data: { todos: [{ content, status }] } }`                  | Updates the TodoWidget above the message input with current progress |
+| Event Type    | When Emitted                          | Payload                                      | UI Behavior                                                          |
+| ------------- | ------------------------------------- | -------------------------------------------- | -------------------------------------------------------------------- |
+| `todo_update` | Each time the agent calls `todo_list` | `{ data: { todos: [{ content, status }] } }` | Updates the TodoWidget above the message input with current progress |
 
 - The TodoWidget (`src/components/TodoWidget.tsx`) is a collapsible bar above the message input
 - Collapsed: shows "Tasks: X/Y complete - [current task]"
@@ -229,6 +229,7 @@ Subagent activity is displayed in real-time via the `SubagentExecution` componen
   - `error`: Red X + error message
 
 Streaming events:
+
 - `subagent_started`: Appends `<SubagentExecution>` markup with running status
 - `subagent_data`: Nested events (tool calls, response tokens) forwarded to parent with subagent context; tool call markup is persisted in both client state and server-side `recievedMessage` for history
 - `subagent_completed`/`subagent_error`: Updates markup with final status and results
@@ -243,8 +244,8 @@ allowedTools: [
   'url_summarization',
   'image_search',
   'youtube_transcript',
-  'pdf_loader'
-]
+  'pdf_loader',
+];
 ```
 
 Tools are filtered in `SubagentExecutor.getFilteredTools()` before passing to SimplifiedAgent. The `deep_research` tool itself is excluded, preventing recursive subagent spawning.
@@ -255,13 +256,13 @@ Subagent definitions are in [src/lib/search/subagents/definitions.ts](src/lib/se
 
 ```typescript
 export interface SubagentDefinition {
-  name: string;                // Display name
-  description: string;         // Purpose description
-  systemPrompt: string;        // Custom system prompt
-  allowedTools: string[];      // Whitelist of tool names
-  useSystemModel: boolean;     // true = System Model, false = Chat Model
-  maxTurns: number;            // Max iterations before forced stop
-  parallelizable: boolean;     // Can run concurrently with others
+  name: string; // Display name
+  description: string; // Purpose description
+  systemPrompt: string; // Custom system prompt
+  allowedTools: string[]; // Whitelist of tool names
+  useSystemModel: boolean; // true = System Model, false = Chat Model
+  maxTurns: number; // Max iterations before forced stop
+  parallelizable: boolean; // Can run concurrently with others
 }
 ```
 

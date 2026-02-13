@@ -207,7 +207,7 @@ export const POST = async (req: Request) => {
           reject: (value: Response) => void,
         ) => {
           let message = '';
-          let sources: any[] = [];
+          let sources: Record<string, unknown>[] = [];
 
           emitter.on('data', (data: string) => {
             try {
@@ -217,7 +217,7 @@ export const POST = async (req: Request) => {
               } else if (parsedData.type === 'sources') {
                 sources = parsedData.data;
               }
-            } catch (error) {
+            } catch (_error) {
               reject(
                 Response.json(
                   { message: 'Error parsing data' },
@@ -231,7 +231,7 @@ export const POST = async (req: Request) => {
             resolve(Response.json({ message, sources }, { status: 200 }));
           });
 
-          emitter.on('error', (error: any) => {
+          emitter.on('error', (error: unknown) => {
             reject(
               Response.json(
                 { message: 'Search error', error },
@@ -247,7 +247,7 @@ export const POST = async (req: Request) => {
 
     const stream = new ReadableStream({
       start(controller) {
-        let sources: any[] = [];
+        let sources: Record<string, unknown>[] = [];
         let isStreamActive = true;
 
         controller.enqueue(
@@ -271,7 +271,7 @@ export const POST = async (req: Request) => {
                   }) + '\n',
                 ),
               );
-            } catch (error) {
+            } catch (_error) {
               // If enqueueing fails, the connection is likely closed
               clearInterval(pingInterval);
               isStreamActive = false;
@@ -288,7 +288,7 @@ export const POST = async (req: Request) => {
 
           try {
             controller.close();
-          } catch (error) {}
+          } catch (_error) {}
         });
 
         emitter.on('data', (data: string) => {
@@ -338,7 +338,7 @@ export const POST = async (req: Request) => {
           controller.close();
         });
 
-        emitter.on('error', (error: any) => {
+        emitter.on('error', (error: unknown) => {
           if (signal.aborted) return;
 
           isStreamActive = false;
@@ -359,8 +359,8 @@ export const POST = async (req: Request) => {
         Connection: 'keep-alive',
       },
     });
-  } catch (err: any) {
-    console.error(`Error in getting search results: ${err.message}`);
+  } catch (err: unknown) {
+    console.error(`Error in getting search results: ${err instanceof Error ? err.message : String(err)}`);
     return Response.json(
       { message: 'An error has occurred.' },
       { status: 500 },

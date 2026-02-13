@@ -4,7 +4,6 @@ import {
   loadOpenAIChatModels,
   loadOpenAIEmbeddingModels,
   PROVIDER_INFO as OpenAIInfo,
-  PROVIDER_INFO,
 } from './openai';
 import {
   getCustomOpenaiApiKey,

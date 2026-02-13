@@ -26,7 +26,7 @@ export function abortRetrieval(messageId: string) {
   if (e?.retrievalController && !e.retrievalController.signal.aborted) {
     try {
       e.retrievalController.abort();
-    } catch (err) {
+    } catch (_err) {
       // ignore
     }
   }

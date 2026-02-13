@@ -20,8 +20,9 @@ import {
   getAvailableEmbeddingModelProviders,
 } from '@/lib/providers';
 
-export const GET = async (req: Request) => {
+export const GET = async (_req: Request) => {
   try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const config: Record<string, any> = {};
 
     const [chatModelProviders, embeddingModelProviders] = await Promise.all([

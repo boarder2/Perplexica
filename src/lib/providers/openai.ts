@@ -32,7 +32,7 @@ async function fetchOpenAIModels(apiKey: string): Promise<string[]> {
   }
 
   return data.data
-    .map((model: any) => (model && model.id ? String(model.id) : undefined))
+    .map((model: Record<string, unknown>) => (model && model.id ? String(model.id) : undefined))
     .filter(Boolean) as string[];
 }
 

@@ -11,9 +11,9 @@ export async function POST(req: NextRequest) {
     setSoftStop(messageId);
     abortRetrieval(messageId);
     return Response.json({ success: true });
-  } catch (e: any) {
+  } catch (e: unknown) {
     return Response.json(
-      { error: e?.message || 'Bad Request' },
+      { error: e instanceof Error ? e.message : 'Bad Request' },
       { status: 400 },
     );
   }

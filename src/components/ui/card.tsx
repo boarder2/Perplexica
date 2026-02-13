@@ -21,8 +21,7 @@ interface CardTitleProps extends React.HTMLAttributes<HTMLHeadingElement> {
   children: React.ReactNode;
 }
 
-interface CardDescriptionProps
-  extends React.HTMLAttributes<HTMLParagraphElement> {
+interface CardDescriptionProps extends React.HTMLAttributes<HTMLParagraphElement> {
   children: React.ReactNode;
 }
 

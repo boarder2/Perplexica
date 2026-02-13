@@ -14,14 +14,12 @@ import {
   ChevronRight,
   Eye,
   EyeOff,
-  Cloud,
-  LucideNewspaper,
 } from 'lucide-react';
 import { useEffect, useState, useRef } from 'react';
 import { cn } from '@/lib/utils';
 import { Switch } from '@headlessui/react';
 import ThemeSwitcher from '@/components/theme/Switcher';
-import { ImagesIcon, VideoIcon, Layers3 } from 'lucide-react';
+import { Layers3 } from 'lucide-react';
 import Link from 'next/link';
 import {
   formattingAndCitationsLocal,
@@ -35,10 +33,10 @@ import { Prompt } from '@/lib/types/prompt';
 
 interface SettingsType {
   chatModelProviders: {
-    [key: string]: [Record<string, any>];
+    [key: string]: { name: string; displayName: string }[];
   };
   embeddingModelProviders: {
-    [key: string]: [Record<string, any>];
+    [key: string]: { name: string; displayName: string }[];
   };
   openaiApiKey: string;
   groqApiKey: string;
@@ -93,7 +91,7 @@ interface TextareaProps extends React.InputHTMLAttributes<HTMLTextAreaElement> {
 }
 
 const TextareaComponent = ({
-  className,
+  className: _className,
   isSaving,
   onSave,
   ...restProps
@@ -207,10 +205,14 @@ const SettingsSection = ({
   );
 };
 
+const predefinedContextSizes = [
+  1024, 2048, 3072, 4096, 8192, 16384, 32768, 65536, 131072,
+];
+
 export default function SettingsPage() {
   const [config, setConfig] = useState<SettingsType | null>(null);
-  const [chatModels, setChatModels] = useState<Record<string, any>>({});
-  const [embeddingModels, setEmbeddingModels] = useState<Record<string, any>>(
+  const [_chatModels, setChatModels] = useState<Record<string, unknown>>({});
+  const [_embeddingModels, setEmbeddingModels] = useState<Record<string, unknown>>(
     {},
   );
   const [selectedChatModelProvider, setSelectedChatModelProvider] = useState<
@@ -234,19 +236,11 @@ export default function SettingsPage() {
   const [linkSystemToChat, setLinkSystemToChat] = useState<boolean>(true);
   const [isLoading, setIsLoading] = useState(true);
   const [automaticSuggestions, setAutomaticSuggestions] = useState(true);
-  const [showWeatherWidget, setShowWeatherWidget] = useState(true);
-  const [showNewsWidget, setShowNewsWidget] = useState(true);
-  const [measureUnit, setMeasureUnit] = useState<'Imperial' | 'Metric'>(
-    'Metric',
-  );
   const [personalizationLocation, setPersonalizationLocation] = useState('');
   const [personalizationAbout, setPersonalizationAbout] = useState('');
   const [savingStates, setSavingStates] = useState<Record<string, boolean>>({});
   const [contextWindowSize, setContextWindowSize] = useState(2048);
   const [isCustomContextWindow, setIsCustomContextWindow] = useState(false);
-  const predefinedContextSizes = [
-    1024, 2048, 3072, 4096, 8192, 16384, 32768, 65536, 131072,
-  ];
 
   const [userSystemPrompts, setUserSystemPrompts] = useState<Prompt[]>([]);
   const [editingPrompt, setEditingPrompt] = useState<Prompt | null>(null);
@@ -257,8 +251,8 @@ export default function SettingsPage() {
 
   // Model visibility state variables
   const [allModels, setAllModels] = useState<{
-    chat: Record<string, Record<string, any>>;
-    embedding: Record<string, Record<string, any>>;
+    chat: Record<string, Record<string, { displayName: string }>>;
+    embedding: Record<string, Record<string, { displayName: string }>>;
   }>({ chat: {}, embedding: {} });
   const [hiddenModels, setHiddenModels] = useState<string[]>([]);
   const [expandedProviders, setExpandedProviders] = useState<Set<string>>(
@@ -354,20 +348,12 @@ export default function SettingsPage() {
       setAutomaticSuggestions(
         localStorage.getItem('autoSuggestions') !== 'false', // default to true if not set
       );
-      setShowWeatherWidget(
-        localStorage.getItem('showWeatherWidget') !== 'false',
-      );
-      setShowNewsWidget(localStorage.getItem('showNewsWidget') !== 'false');
       const storedContextWindow = parseInt(
         localStorage.getItem('ollamaContextWindow') ?? '2048',
       );
       setContextWindowSize(storedContextWindow);
       setIsCustomContextWindow(
         !predefinedContextSizes.includes(storedContextWindow),
-      );
-
-      setMeasureUnit(
-        localStorage.getItem('measureUnit')! as 'Imperial' | 'Metric',
       );
 
       const storedLocation =
@@ -431,7 +417,7 @@ export default function SettingsPage() {
         } else {
           console.error('Failed to load system prompts.');
         }
-      } catch (error) {
+      } catch (_error) {
         console.error('Error loading system prompts.');
       } finally {
         setIsLoading(false);
@@ -441,16 +427,16 @@ export default function SettingsPage() {
     fetchSystemPrompts();
   }, []);
 
-  const saveConfig = async (key: string, value: any) => {
+  const saveConfig = async (key: string, value: string | string[] | number | boolean) => {
     setSavingStates((prev) => ({ ...prev, [key]: true }));
 
     try {
       // Client-only settings for System Model: do not POST to backend
       if (key === 'systemModelProvider' || key === 'systemModel') {
         if (key === 'systemModelProvider') {
-          localStorage.setItem('systemModelProvider', value);
+          localStorage.setItem('systemModelProvider', value as string);
         } else if (key === 'systemModel') {
-          localStorage.setItem('systemModel', value);
+          localStorage.setItem('systemModel', value as string);
         }
         setTimeout(() => {
           setSavingStates((prev) => ({ ...prev, [key]: false }));
@@ -519,7 +505,7 @@ export default function SettingsPage() {
           const firstValidProvider = Object.entries(
             data.chatModelProviders || {},
           ).find(
-            ([_, models]) => Array.isArray(models) && models.length > 0,
+            ([, models]) => Array.isArray(models) && models.length > 0,
           )?.[0];
 
           if (firstValidProvider) {
@@ -563,7 +549,7 @@ export default function SettingsPage() {
           const firstValidProvider = Object.entries(
             data.chatModelProviders || {},
           ).find(
-            ([_, models]) => Array.isArray(models) && models.length > 0,
+            ([, models]) => Array.isArray(models) && models.length > 0,
           )?.[0];
 
           if (firstValidProvider) {
@@ -612,7 +598,7 @@ export default function SettingsPage() {
           const firstValidProvider = Object.entries(
             data.embeddingModelProviders || {},
           ).find(
-            ([_, models]) => Array.isArray(models) && models.length > 0,
+            ([, models]) => Array.isArray(models) && models.length > 0,
           )?.[0];
 
           if (firstValidProvider) {
@@ -639,23 +625,21 @@ export default function SettingsPage() {
       if (key === 'automaticSuggestions') {
         localStorage.setItem('autoSuggestions', value.toString());
       } else if (key === 'chatModelProvider') {
-        localStorage.setItem('chatModelProvider', value);
+        localStorage.setItem('chatModelProvider', value as string);
       } else if (key === 'chatModel') {
-        localStorage.setItem('chatModel', value);
+        localStorage.setItem('chatModel', value as string);
       } else if (key === 'systemModelProvider') {
         // handled above (local-only)
-        localStorage.setItem('systemModelProvider', value);
+        localStorage.setItem('systemModelProvider', value as string);
       } else if (key === 'systemModel') {
         // handled above (local-only)
-        localStorage.setItem('systemModel', value);
+        localStorage.setItem('systemModel', value as string);
       } else if (key === 'embeddingModelProvider') {
-        localStorage.setItem('embeddingModelProvider', value);
+        localStorage.setItem('embeddingModelProvider', value as string);
       } else if (key === 'embeddingModel') {
-        localStorage.setItem('embeddingModel', value);
+        localStorage.setItem('embeddingModel', value as string);
       } else if (key === 'ollamaContextWindow') {
         localStorage.setItem('ollamaContextWindow', value.toString());
-      } else if (key === 'measureUnit') {
-        localStorage.setItem('measureUnit', value.toString());
       }
     } catch (err) {
       console.error('Failed to save:', err);
@@ -691,7 +675,7 @@ export default function SettingsPage() {
     dispatchPersonalizationEvent();
   };
 
-  const handlePersonalizationClear = (
+  const _handlePersonalizationClear = (
     key: 'personalization.location' | 'personalization.about',
     setter: (value: string) => void,
   ) => {
@@ -728,7 +712,7 @@ export default function SettingsPage() {
   };
 
   const handleProviderVisibilityToggle = async (
-    providerModels: Record<string, any>,
+    providerModels: Record<string, unknown>,
     showAll: boolean,
   ) => {
     const modelKeys = Object.keys(providerModels);
@@ -824,7 +808,7 @@ export default function SettingsPage() {
             `Failed to ${editingPrompt ? 'update' : 'add'} prompt.`,
         );
       }
-    } catch (error) {
+    } catch (_error) {
       console.error(`Error ${editingPrompt ? 'updating' : 'adding'} prompt.`);
     }
   };
@@ -844,7 +828,7 @@ export default function SettingsPage() {
         const errorData = await response.json();
         console.error(errorData.error || 'Failed to delete prompt.');
       }
-    } catch (error) {
+    } catch (_error) {
       console.error('Error deleting prompt.');
     }
   };
@@ -890,100 +874,6 @@ export default function SettingsPage() {
               <div className="flex flex-col space-y-1">
                 <p className="text-sm">Theme</p>
                 <ThemeSwitcher />
-              </div>
-              <div className="flex flex-col space-y-1">
-                <p className="text-sm">Home Page Widgets</p>
-                <div className="flex flex-col space-y-2">
-                  <div className="flex items-center justify-between p-3 bg-surface rounded-lg hover:bg-surface-2 transition-colors">
-                    <div className="flex items-center space-x-3">
-                      <div className="p-2 bg-surface-2 rounded-lg">
-                        <Cloud size={18} />
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium">Weather Widget</p>
-                        <p className="text-xs mt-0.5">
-                          Show or hide the weather widget on the home page
-                        </p>
-                      </div>
-                    </div>
-                    <Switch
-                      checked={showWeatherWidget}
-                      onChange={(checked) => {
-                        setShowWeatherWidget(checked);
-                        localStorage.setItem(
-                          'showWeatherWidget',
-                          checked.toString(),
-                        );
-                      }}
-                      className={cn(
-                        showWeatherWidget ? 'bg-accent' : 'bg-surface-2',
-                        'relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none',
-                      )}
-                    >
-                      <span
-                        className={cn(
-                          showWeatherWidget ? 'translate-x-6' : 'translate-x-1',
-                          'inline-block h-4 w-4 transform rounded-full bg-white transition-transform',
-                        )}
-                      />
-                    </Switch>
-                  </div>
-
-                  <div className="flex items-center justify-between p-3 bg-surface rounded-lg hover:bg-surface-2 transition-colors">
-                    <div className="flex items-center space-x-3">
-                      <div className="p-2 bg-surface-2 rounded-lg">
-                        <LucideNewspaper size={18} />
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium">News Widget</p>
-                        <p className="text-xs mt-0.5">
-                          Show or hide the news widget on the home page
-                        </p>
-                      </div>
-                    </div>
-                    <Switch
-                      checked={showNewsWidget}
-                      onChange={(checked) => {
-                        setShowNewsWidget(checked);
-                        localStorage.setItem(
-                          'showNewsWidget',
-                          checked.toString(),
-                        );
-                      }}
-                      className={cn(
-                        showNewsWidget ? 'bg-accent' : 'bg-surface-2',
-                        'relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none',
-                      )}
-                    >
-                      <span
-                        className={cn(
-                          showNewsWidget ? 'translate-x-6' : 'translate-x-1',
-                          'inline-block h-4 w-4 transform rounded-full bg-white transition-transform',
-                        )}
-                      />
-                    </Switch>
-                  </div>
-                </div>
-              </div>
-              <div className="flex flex-col space-y-1">
-                <p className="text-sm">Measurement Units</p>
-                <Select
-                  value={measureUnit ?? undefined}
-                  onChange={(e) => {
-                    setMeasureUnit(e.target.value as 'Imperial' | 'Metric');
-                    saveConfig('measureUnit', e.target.value);
-                  }}
-                  options={[
-                    {
-                      label: 'Metric',
-                      value: 'Metric',
-                    },
-                    {
-                      label: 'Imperial',
-                      value: 'Imperial',
-                    },
-                  ]}
-                />
               </div>
             </SettingsSection>
 
@@ -1312,7 +1202,7 @@ export default function SettingsPage() {
                         (provider) => ({
                           value: provider,
                           label:
-                            (PROVIDER_METADATA as any)[provider]?.displayName ||
+                            (PROVIDER_METADATA as Record<string, { displayName?: string }>)[provider]?.displayName ||
                             provider.charAt(0).toUpperCase() +
                               provider.slice(1),
                         }),
@@ -1522,7 +1412,7 @@ export default function SettingsPage() {
                         (provider) => ({
                           value: provider,
                           label:
-                            (PROVIDER_METADATA as any)[provider]?.displayName ||
+                            (PROVIDER_METADATA as Record<string, { displayName?: string }>)[provider]?.displayName ||
                             provider.charAt(0).toUpperCase() +
                               provider.slice(1),
                         }),
@@ -1662,7 +1552,7 @@ export default function SettingsPage() {
                         (provider) => ({
                           value: provider,
                           label:
-                            (PROVIDER_METADATA as any)[provider]?.displayName ||
+                            (PROVIDER_METADATA as Record<string, { displayName?: string }>)[provider]?.displayName ||
                             provider.charAt(0).toUpperCase() +
                               provider.slice(1),
                         }),
@@ -1722,7 +1612,7 @@ export default function SettingsPage() {
                 {/* Unified Models List */}
                 {(() => {
                   // Combine all models from both chat and embedding providers
-                  const allProviders: Record<string, Record<string, any>> = {};
+                  const allProviders: Record<string, Record<string, { displayName: string }>> = {};
 
                   // Add chat models
                   Object.entries(allModels.chat).forEach(
@@ -1774,7 +1664,7 @@ export default function SettingsPage() {
                                 <ChevronRight size={16} />
                               )}
                               <h4 className="text-sm font-medium">
-                                {(PROVIDER_METADATA as any)[provider]
+                                {(PROVIDER_METADATA as Record<string, { displayName?: string }>)[provider]
                                   ?.displayName ||
                                   provider.charAt(0).toUpperCase() +
                                     provider.slice(1)}

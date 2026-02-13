@@ -46,12 +46,12 @@ export const simpleWebSearchTool = tool(
         throw new Error('Embeddings not available in config');
       }
 
-      const llm = config.configurable.systemLlm;
+      const _llm = config.configurable.systemLlm;
       const embeddings: CachedEmbeddings = config.configurable.embeddings;
-      const retrievalSignal: AbortSignal | undefined = (config as any)
-        ?.configurable?.retrievalSignal;
-      const messageId: string | undefined = (config as any)?.configurable
-        ?.messageId;
+      const retrievalSignal: AbortSignal | undefined = (config as unknown as Record<string, Record<string, unknown>>)
+        ?.configurable?.retrievalSignal as AbortSignal | undefined;
+      const messageId: string | undefined = (config as unknown as Record<string, Record<string, unknown>>)?.configurable
+        ?.messageId as string | undefined;
 
       const searchQuery = query;
       console.log(
@@ -66,7 +66,7 @@ export const simpleWebSearchTool = tool(
             messages: [
               new ToolMessage({
                 content: 'Soft-stop set; skipping web search.',
-                tool_call_id: (config as any)?.toolCall.id,
+                tool_call_id: (config as unknown as { toolCall: { id: string } })?.toolCall.id,
               }),
             ],
           },
@@ -93,7 +93,7 @@ export const simpleWebSearchTool = tool(
             messages: [
               new ToolMessage({
                 content: 'No search results found.',
-                tool_call_id: (config as any)?.toolCall.id,
+                tool_call_id: (config as unknown as { toolCall: { id: string } })?.toolCall.id,
               }),
             ],
           },
@@ -118,7 +118,7 @@ export const simpleWebSearchTool = tool(
       // Always take the top 3 results first
       const top3Results = searchResults.results.slice(0, 3);
       documents.push(
-        ...top3Results.map((result, i) => {
+        ...top3Results.map((result, _i) => {
           return new Document({
             pageContent: `${result.title || 'Untitled'}\n\n${result.content || ''}`,
             metadata: {
@@ -171,25 +171,25 @@ export const simpleWebSearchTool = tool(
               content: JSON.stringify({
                 document: documents,
               }),
-              tool_call_id: (config as any)?.toolCall.id,
+              tool_call_id: (config as unknown as { toolCall: { id: string } })?.toolCall.id,
             }),
           ],
         },
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('SimpleWebSearchTool: Error during web search:', error);
       const errorMessage =
         error instanceof Error ? error.message : 'Unknown error';
 
       // Treat abort as non-fatal/no-op update
-      if (error?.name === 'CanceledError' || error?.name === 'AbortError') {
+      if (error instanceof Error && (error.name === 'CanceledError' || error.name === 'AbortError')) {
         return new Command({
           update: {
             relevantDocuments: [],
             messages: [
               new ToolMessage({
                 content: 'Web search aborted by soft-stop.',
-                tool_call_id: (config as any)?.toolCall.id,
+                tool_call_id: (config as unknown as { toolCall: { id: string } })?.toolCall.id,
               }),
             ],
           },
@@ -203,7 +203,7 @@ export const simpleWebSearchTool = tool(
           messages: [
             new ToolMessage({
               content: 'Error occurred during web search: ' + errorMessage,
-              tool_call_id: (config as any)?.toolCall.id,
+              tool_call_id: (config as unknown as { toolCall: { id: string } })?.toolCall.id,
             }),
           ],
         },

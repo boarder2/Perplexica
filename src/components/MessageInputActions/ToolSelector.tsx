@@ -76,7 +76,7 @@ const ToolSelector = ({
 
   return (
     <Popover className="relative">
-      {({ open }) => (
+      {({ open: _open }) => (
         <>
           <PopoverButton
             className={cn(

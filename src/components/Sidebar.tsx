@@ -4,14 +4,13 @@ import { cn } from '@/lib/utils';
 import {
   BookOpenText,
   Home,
-  Search,
   SquarePen,
   Settings,
   LayoutDashboard,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useSelectedLayoutSegments } from 'next/navigation';
-import React, { useState, type ReactNode } from 'react';
+import React, { type ReactNode } from 'react';
 import Layout from './Layout';
 
 const VerticalIconContainer = ({ children }: { children: ReactNode }) => {
@@ -37,12 +36,6 @@ const Sidebar = ({ children }: { children: React.ReactNode }) => {
       label: 'Dashboard',
     },
     {
-      icon: Search,
-      href: '/discover',
-      active: segments.includes('discover'),
-      label: 'Discover',
-    },
-    {
       icon: BookOpenText,
       href: '/library',
       active: segments.includes('library'),
@@ -54,9 +47,9 @@ const Sidebar = ({ children }: { children: React.ReactNode }) => {
     <div>
       <div className="hidden lg:fixed lg:inset-y-0 lg:z-50 lg:flex lg:w-20 lg:flex-col">
         <div className="flex grow flex-col items-center justify-between gap-y-5 overflow-y-auto bg-surface px-2 py-8">
-          <a href="/">
+          <Link href="/">
             <SquarePen className="cursor-pointer" />
-          </a>
+          </Link>
           <VerticalIconContainer>
             {navLinks.map((link, i) => (
               <Link

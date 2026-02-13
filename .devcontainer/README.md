@@ -7,10 +7,10 @@ This project includes a VS Code Dev Container configuration that runs Perplexica
 1. Install **Docker Desktop**.
 2. In VS Code, run: **Dev Containers: Reopen in Container**.
 3. Once the container is ready, start the dev server inside the container:
-
    - `yarn dev`
 
 Then open:
+
 - Perplexica: http://localhost:3000
 - SearXNG: http://localhost:4000
 

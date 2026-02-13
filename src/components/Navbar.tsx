@@ -1,4 +1,4 @@
-import { Clock, Edit, Share, Trash, FileText, FileDown } from 'lucide-react';
+import { Clock, Edit, Share, FileText, FileDown } from 'lucide-react';
 import { Message } from './ChatWindow';
 import { useEffect, useState, Fragment } from 'react';
 import { formatTimeDifference } from '@/lib/utils';
@@ -10,6 +10,7 @@ import {
   Transition,
 } from '@headlessui/react';
 import jsPDF from 'jspdf';
+import Link from 'next/link';
 
 const downloadFile = (filename: string, content: string, type: string) => {
   const blob = new Blob([content], { type });
@@ -29,7 +30,7 @@ const exportAsMarkdown = (messages: Message[], title: string) => {
   const date = new Date(messages[0]?.createdAt || Date.now()).toLocaleString();
   let md = `# 💬 Chat Export: ${title}\n\n`;
   md += `*Exported on: ${date}*\n\n---\n`;
-  messages.forEach((msg, idx) => {
+  messages.forEach((msg, _idx) => {
     md += `\n---\n`;
     md += `**${msg.role === 'user' ? '🧑 User' : '🤖 Assistant'}**  
 `;
@@ -37,7 +38,7 @@ const exportAsMarkdown = (messages: Message[], title: string) => {
     md += `> ${msg.content.replace(/\n/g, '\n> ')}\n`;
     if (msg.sources && msg.sources.length > 0) {
       md += `\n**Citations:**\n`;
-      msg.sources.forEach((src: any, i: number) => {
+      msg.sources.forEach((src: { metadata: { url?: string } }, i: number) => {
         const url = src.metadata?.url || '';
         md += `- [${i + 1}] [${url}](${url})\n`;
       });
@@ -63,7 +64,7 @@ const exportAsPDF = (messages: Message[], title: string) => {
   doc.line(10, y, 200, y);
   y += 6;
   doc.setTextColor(30);
-  messages.forEach((msg, idx) => {
+  messages.forEach((msg, _idx) => {
     if (y > pageHeight - 30) {
       doc.addPage();
       y = 15;
@@ -95,7 +96,7 @@ const exportAsPDF = (messages: Message[], title: string) => {
       }
       doc.text('Citations:', 12, y);
       y += 5;
-      msg.sources.forEach((src: any, i: number) => {
+      msg.sources.forEach((src: { metadata: { url?: string } }, i: number) => {
         const url = src.metadata?.url || '';
         if (y > pageHeight - 15) {
           doc.addPage();
@@ -160,12 +161,12 @@ const Navbar = ({
 
   return (
     <div className="fixed z-40 top-0 left-0 right-0 px-4 lg:pl-[104px] lg:pr-6 lg:px-8 flex flex-row items-center justify-between w-full py-4 text-sm border-b bg-bg border-surface-2">
-      <a
+      <Link
         href="/"
         className="active:scale-95 transition duration-100 cursor-pointer lg:hidden"
       >
         <Edit size={17} />
-      </a>
+      </Link>
       <div className="hidden lg:flex flex-row items-center justify-center space-x-2">
         <Clock size={17} />
         <p className="text-xs">{timeAgo} ago</p>

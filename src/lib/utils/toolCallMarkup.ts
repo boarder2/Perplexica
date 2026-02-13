@@ -98,19 +98,3 @@ export function updateToolCallMarkup(
 
   return content.replace(originalTag, newTag);
 }
-
-/** Convenience wrapper to bulk-update multiple tool calls (used if ever needed). */
-export function updateMultipleToolCalls(
-  content: string,
-  updates: {
-    toolCallId: string;
-    status: string;
-    error?: string;
-    extra?: Record<string, string | undefined>;
-  }[],
-): string {
-  return updates.reduce(
-    (acc, u) => updateToolCallMarkup(acc, u.toolCallId, u),
-    content,
-  );
-}

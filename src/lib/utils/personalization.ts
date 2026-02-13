@@ -45,5 +45,3 @@ export function buildPersonalizationSection({
 
   return lines.join('\n');
 }
-
-export type { PersonalizationInput };

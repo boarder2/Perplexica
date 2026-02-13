@@ -10,6 +10,7 @@ const ThemeSwitcher = ({ className }: { className?: string }) => {
   const [accent, setAccent] = useState<string>('');
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
     const t = (localStorage.getItem('appTheme') as Theme) || 'dark';
     const b = localStorage.getItem('userBg') || '#0f0f0f';
@@ -20,6 +21,7 @@ const ThemeSwitcher = ({ className }: { className?: string }) => {
   }, []);
 
   const apply = (next: Theme, nextBg = bg, nextAccent = accent) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (window as any).__setAppTheme?.(next, nextBg, nextAccent);
     setTheme(next);
     if (next === 'light' || next === 'dark') {

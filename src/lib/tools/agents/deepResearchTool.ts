@@ -99,12 +99,12 @@ export const deepResearchTool = tool(
                 execution.status === 'success'
                   ? `Deep research completed. Findings:\n\n${execution.summary}`
                   : `Deep research encountered an error: ${execution.error || 'Unknown error'}`,
-              tool_call_id: (config as any)?.toolCall.id,
+              tool_call_id: (config as unknown as { toolCall: { id: string } })?.toolCall.id,
             }),
           ],
         },
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('DeepResearchTool: Error:', error);
 
       return new Command({
@@ -114,8 +114,8 @@ export const deepResearchTool = tool(
             new ToolMessage({
               content:
                 'Error during deep research: ' +
-                (error.message || 'Unknown error'),
-              tool_call_id: (config as any)?.toolCall.id,
+                (error instanceof Error ? error.message : 'Unknown error'),
+              tool_call_id: (config as unknown as { toolCall: { id: string } })?.toolCall.id,
             }),
           ],
         },

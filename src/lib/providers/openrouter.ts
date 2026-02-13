@@ -24,7 +24,7 @@ async function fetchModelList(): Promise<void> {
 
     const data = await response.json();
 
-    openrouterChatModels = data.data.map((model: any) => ({
+    openrouterChatModels = data.data.map((model: Record<string, unknown>) => ({
       displayName: model.name,
       key: model.id,
     }));

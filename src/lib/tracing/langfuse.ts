@@ -19,7 +19,7 @@ export function getLangfuseHandler(): CallbackHandler | null {
       secretKey: process.env.LANGFUSE_SECRET_KEY,
       baseUrl: process.env.LANGFUSE_BASE_URL,
     });
-  } catch (e) {
+  } catch (_e) {
     // If initialization fails (e.g., missing envs), disable tracing gracefully
     handler = null;
   }

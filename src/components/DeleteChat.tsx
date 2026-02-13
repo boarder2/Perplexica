@@ -47,8 +47,8 @@ const DeleteChat = ({
       if (redirect) {
         window.location.href = '/';
       }
-    } catch (err: any) {
-      toast.error(err.message);
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : String(err));
     } finally {
       setConfirmationDialogOpen(false);
       setLoading(false);

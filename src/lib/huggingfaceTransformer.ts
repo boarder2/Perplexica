@@ -1,8 +1,7 @@
 import { Embeddings, type EmbeddingsParams } from '@langchain/core/embeddings';
 import { chunkArray } from '@langchain/core/utils/chunk_array';
 
-export interface HuggingFaceTransformersEmbeddingsParams
-  extends EmbeddingsParams {
+export interface HuggingFaceTransformersEmbeddingsParams extends EmbeddingsParams {
   modelName: string;
 
   model: string;
@@ -28,6 +27,7 @@ export class HuggingFaceTransformersEmbeddings
 
   timeout?: number;
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private pipelinePromise: Promise<any> | undefined;
 
   constructor(fields?: Partial<HuggingFaceTransformersEmbeddingsParams>) {

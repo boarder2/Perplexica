@@ -23,7 +23,7 @@ interface GroqModelsResponse {
   data: GroqModel[];
 }
 
-const generateDisplayName = (modelId: string, ownedBy: string): string => {
+const generateDisplayName = (modelId: string, _ownedBy: string): string => {
   // Handle special cases for better display names
   const modelMap: Record<string, string> = {
     'gemma2-9b-it': 'Gemma2 9B IT',

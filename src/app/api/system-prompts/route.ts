@@ -13,9 +13,9 @@ import { Prompt } from '@/lib/types/prompt';
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
-    const type = searchParams.get('type');
+    const _type = searchParams.get('type');
     // Include base prompts from /lib/prompts/templates
-    let prompts: Prompt[] = [
+    const prompts: Prompt[] = [
       formattingAndCitationsLocal,
       formattingAndCitationsScholarly,
       formattingAndCitationsWeb,

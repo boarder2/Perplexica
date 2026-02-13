@@ -1,4 +1,3 @@
-import type { Embeddings } from '@langchain/core/embeddings';
 import type { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import { BaseMessage } from '@langchain/core/messages';
 import eventEmitter from 'events';

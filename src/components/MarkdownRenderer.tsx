@@ -1,4 +1,4 @@
-/* eslint-disable @next/next/no-img-element */
+ 
 'use client';
 
 import { cn } from '@/lib/utils';
@@ -16,7 +16,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import Markdown, { MarkdownToJSX } from 'markdown-to-jsx';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import {
   oneDark,
@@ -29,7 +29,7 @@ import { decodeHtmlEntities } from '@/lib/utils/html';
 import { SubagentExecution } from './MessageActions/SubagentExecution';
 
 // Helper functions for think overlay
-const extractThinkContent = (content: string): string | null => {
+const _extractThinkContent = (content: string): string | null => {
   const thinkRegex = /<think[^>]*>([\s\S]*?)<\/think>/g;
   const matches = content.match(thinkRegex);
   if (!matches) return null;
@@ -73,7 +73,7 @@ interface MarkdownRendererProps {
 const ToolCall = ({
   type,
   query,
-  urls,
+  urls: _urls,
   url,
   videoId,
   count,
@@ -381,7 +381,7 @@ const MarkdownRenderer = ({
         component: SubagentExecution,
       },
       think: {
-        component: ({ children, id, ...props }) => {
+        component: ({ children, id, ..._props }) => {
           // Use the id from the HTML attribute
           const thinkBoxId = id || 'think-unknown';
           const isExpanded = isThinkBoxExpanded(thinkBoxId);

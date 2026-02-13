@@ -51,7 +51,12 @@ const responseMarkdownOptions: MarkdownToJSX.Options = {
     },
     a: {
       component: (props) => (
-        <a {...props} target="_blank" rel="noopener noreferrer" className="text-accent hover:underline" />
+        <a
+          {...props}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-accent hover:underline"
+        />
       ),
     },
     // Security: prevent rendering of potentially dangerous elements
@@ -67,7 +72,7 @@ const responseMarkdownOptions: MarkdownToJSX.Options = {
  * with expandable nested content showing tool calls and other activities
  */
 export const SubagentExecution: React.FC<SubagentExecutionProps> = ({
-  id,
+  id: _id,
   name,
   task,
   status = 'running',
@@ -130,7 +135,9 @@ export const SubagentExecution: React.FC<SubagentExecutionProps> = ({
             <span className="font-semibold text-sm">{name || 'Subagent'}</span>
           </div>
           {task && (
-            <div className={cn("text-xs text-fg/70 mt-1", !expanded && "truncate")}>
+            <div
+              className={cn('text-xs text-fg/70 mt-1', !expanded && 'truncate')}
+            >
               {decodeHtmlEntities(task)}
             </div>
           )}
@@ -154,9 +161,7 @@ export const SubagentExecution: React.FC<SubagentExecutionProps> = ({
               <div className="text-xs font-semibold text-fg/70 uppercase tracking-wide">
                 Activity
               </div>
-              <div className="space-y-1">
-                {children}
-              </div>
+              <div className="space-y-1">{children}</div>
             </div>
           )}
 
@@ -178,17 +183,21 @@ export const SubagentExecution: React.FC<SubagentExecutionProps> = ({
                 Response
               </button>
               {responseExpanded && (
-                <div className={cn(
-                  "prose prose-sm prose-invert dark:prose-invert max-w-none",
-                  "prose-p:leading-relaxed prose-p:my-2",
-                  "prose-headings:font-semibold prose-h1:text-lg prose-h2:text-base prose-h3:text-sm",
-                  "prose-ul:my-2 prose-ol:my-2 prose-li:my-1",
-                  "prose-strong:font-bold prose-em:italic",
-                  "prose-code:bg-surface-2 prose-code:px-1 prose-code:py-0.5 prose-code:rounded",
-                  "prose-a:text-accent prose-a:no-underline hover:prose-a:underline",
-                  "wrap-break-word"
-                )}>
-                  <Markdown options={responseMarkdownOptions}>{responseContent}</Markdown>
+                <div
+                  className={cn(
+                    'prose prose-sm prose-invert dark:prose-invert max-w-none',
+                    'prose-p:leading-relaxed prose-p:my-2',
+                    'prose-headings:font-semibold prose-h1:text-lg prose-h2:text-base prose-h3:text-sm',
+                    'prose-ul:my-2 prose-ol:my-2 prose-li:my-1',
+                    'prose-strong:font-bold prose-em:italic',
+                    'prose-code:bg-surface-2 prose-code:px-1 prose-code:py-0.5 prose-code:rounded',
+                    'prose-a:text-accent prose-a:no-underline hover:prose-a:underline',
+                    'wrap-break-word',
+                  )}
+                >
+                  <Markdown options={responseMarkdownOptions}>
+                    {responseContent}
+                  </Markdown>
                 </div>
               )}
             </div>

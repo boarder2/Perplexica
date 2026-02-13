@@ -137,10 +137,3 @@ export class CachedEmbeddings {
     return this.embeddings;
   }
 }
-
-/**
- * Manually purge the embedding cache (removes expired and LRU entries)
- */
-export async function purgeCache() {
-  await purgeEmbeddingCache();
-}

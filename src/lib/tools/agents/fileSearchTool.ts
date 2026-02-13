@@ -61,7 +61,7 @@ export const fileSearchTool = tool(
             messages: [
               new ToolMessage({
                 content: 'File search cancelled.',
-                tool_call_id: (config as any)?.toolCall.id,
+                tool_call_id: (config as unknown as { toolCall: { id: string } })?.toolCall.id,
               }),
             ],
           },
@@ -84,7 +84,7 @@ export const fileSearchTool = tool(
             messages: [
               new ToolMessage({
                 content: 'No files attached to search.',
-                tool_call_id: (config as any)?.toolCall.id,
+                tool_call_id: (config as unknown as { toolCall: { id: string } })?.toolCall.id,
               }),
             ],
           },
@@ -114,7 +114,7 @@ export const fileSearchTool = tool(
             messages: [
               new ToolMessage({
                 content: 'No searchable content found in attached files.',
-                tool_call_id: (config as any)?.toolCall.id,
+                tool_call_id: (config as unknown as { toolCall: { id: string } })?.toolCall.id,
               }),
             ],
           },
@@ -145,7 +145,7 @@ export const fileSearchTool = tool(
       // Add search metadata to documents and remove embeddings to reduce context size
       const documentsWithMetadata = rankedDocuments.map((doc) => {
         // Extract metadata and exclude embeddings
-        const { embeddings: _, ...metadataWithoutEmbeddings } =
+        const { embeddings: _embeddings, ...metadataWithoutEmbeddings } =
           doc.metadata || {};
 
         return new Document({
@@ -174,7 +174,7 @@ export const fileSearchTool = tool(
                 processedFiles: fileIds.length,
                 relevantSections: rankedDocuments.length,
               }),
-              tool_call_id: (config as any)?.toolCall.id,
+              tool_call_id: (config as unknown as { toolCall: { id: string } })?.toolCall.id,
             }),
           ],
         },
@@ -190,7 +190,7 @@ export const fileSearchTool = tool(
           messages: [
             new ToolMessage({
               content: 'Error occurred during file search: ' + errorMessage,
-              tool_call_id: (config as any)?.toolCall.id,
+              tool_call_id: (config as unknown as { toolCall: { id: string } })?.toolCall.id,
             }),
           ],
         },

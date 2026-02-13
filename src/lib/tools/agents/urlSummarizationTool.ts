@@ -64,7 +64,7 @@ export const urlSummarizationTool = tool(
             messages: [
               new ToolMessage({
                 content: 'No search results found.',
-                tool_call_id: (config as any)?.toolCall.id,
+                tool_call_id: (config as unknown as { toolCall: { id: string } })?.toolCall.id,
               }),
             ],
           },
@@ -76,10 +76,10 @@ export const urlSummarizationTool = tool(
         throw new Error('System LLM not available in config');
       }
       const llm = config.configurable.systemLlm;
-      const retrievalSignal: AbortSignal | undefined = (config as any)
-        ?.configurable?.retrievalSignal;
-      const messageId: string | undefined = (config as any)?.configurable
-        ?.messageId;
+      const retrievalSignal: AbortSignal | undefined = (config as unknown as Record<string, Record<string, unknown>>)
+        ?.configurable?.retrievalSignal as AbortSignal | undefined;
+      const messageId: string | undefined = (config as unknown as Record<string, Record<string, unknown>>)?.configurable
+        ?.messageId as string | undefined;
       const documents: Document[] = [];
 
       // Process each URL
@@ -187,12 +187,12 @@ Provide a comprehensive summary of the above web page content, focusing on infor
               `URLSummarizationTool: No valid content generated for URL: ${url}`,
             );
           }
-        } catch (error: any) {
+        } catch (error: unknown) {
           console.error(
             `URLSummarizationTool: Error processing URL ${url}:`,
             error,
           );
-          if (error?.name === 'AbortError' || error?.name === 'CanceledError') {
+          if (error instanceof Error && (error.name === 'AbortError' || error.name === 'CanceledError')) {
             break;
           }
           continue;
@@ -211,7 +211,7 @@ Provide a comprehensive summary of the above web page content, focusing on infor
               content: JSON.stringify({
                 document: documents,
               }),
-              tool_call_id: (config as any)?.toolCall.id,
+              tool_call_id: (config as unknown as { toolCall: { id: string } })?.toolCall.id,
             }),
           ],
         },
@@ -229,7 +229,7 @@ Provide a comprehensive summary of the above web page content, focusing on infor
           messages: [
             new ToolMessage({
               content: 'Error occurred during URL processing: ' + errorMessage,
-              tool_call_id: (config as any)?.toolCall.id,
+              tool_call_id: (config as unknown as { toolCall: { id: string } })?.toolCall.id,
             }),
           ],
         },

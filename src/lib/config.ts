@@ -1,13 +1,10 @@
 import toml from '@iarna/toml';
 
-// Use dynamic imports for Node.js modules to prevent client-side errors
-let fs: any;
-let path: any;
-if (typeof window === 'undefined') {
-  // We're on the server
-  fs = require('fs');
-  path = require('path');
-}
+// Dynamic require for Node.js modules to prevent client-side bundling errors
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const fs = typeof window === 'undefined' ? require('fs') : undefined;
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const path = typeof window === 'undefined' ? require('path') : undefined;
 
 const configFileName = 'config.toml';
 
@@ -65,12 +62,12 @@ const loadConfig = () => {
   // Server-side only
   if (typeof window === 'undefined') {
     const config = toml.parse(
-      fs.readFileSync(path.join(process.cwd(), `${configFileName}`), 'utf-8'),
-    ) as any as Config;
+      fs!.readFileSync(path!.join(process.cwd(), `${configFileName}`), 'utf-8'),
+    ) as unknown as Config;
 
     // Ensure GENERAL section exists
     if (!config.GENERAL) {
-      config.GENERAL = {} as any;
+      config.GENERAL = {} as Config['GENERAL'];
     }
 
     // Handle HIDDEN_MODELS - fix malformed table format to proper array
@@ -81,7 +78,7 @@ const loadConfig = () => {
       !Array.isArray(config.GENERAL.HIDDEN_MODELS)
     ) {
       // Convert malformed table format to array
-      const hiddenModelsObj = config.GENERAL.HIDDEN_MODELS as any;
+      const hiddenModelsObj = config.GENERAL.HIDDEN_MODELS as unknown as Record<string, unknown>;
       const hiddenModelsArray: string[] = [];
 
       // Extract values from numeric keys and sort by key
@@ -145,7 +142,7 @@ export const getCustomOpenaiModelName = () =>
 export const getLMStudioApiEndpoint = () =>
   loadConfig().MODELS.LM_STUDIO.API_URL;
 
-const mergeConfigs = (current: any, update: any): any => {
+const mergeConfigs = (current: Record<string, unknown>, update: Record<string, unknown>): Record<string, unknown> => {
   if (update === null || update === undefined) {
     return current;
   }
@@ -175,7 +172,7 @@ const mergeConfigs = (current: any, update: any): any => {
         result[key] !== null &&
         !Array.isArray(result[key])
       ) {
-        result[key] = mergeConfigs(result[key], updateValue);
+        result[key] = mergeConfigs(result[key] as Record<string, unknown>, updateValue as Record<string, unknown>);
       } else if (updateValue !== undefined) {
         result[key] = updateValue;
       }
@@ -189,10 +186,10 @@ export const updateConfig = (config: RecursivePartial<Config>) => {
   // Server-side only
   if (typeof window === 'undefined') {
     const currentConfig = loadConfig();
-    const mergedConfig = mergeConfigs(currentConfig, config);
-    fs.writeFileSync(
-      path.join(path.join(process.cwd(), `${configFileName}`)),
-      toml.stringify(mergedConfig),
+    const mergedConfig = mergeConfigs(currentConfig as unknown as Record<string, unknown>, config as unknown as Record<string, unknown>);
+    fs!.writeFileSync(
+      path!.join(path!.join(process.cwd(), `${configFileName}`)),
+      toml.stringify(mergedConfig as unknown as toml.JsonMap),
     );
   }
 };

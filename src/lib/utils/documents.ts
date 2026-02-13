@@ -4,121 +4,13 @@ import {
   writeCachedRecord,
 } from '@/lib/utils/webCache';
 import { CheerioWebBaseLoader } from '@langchain/community/document_loaders/web/cheerio';
-import { PlaywrightWebBaseLoader } from '@langchain/community/document_loaders/web/playwright';
 import { YoutubeLoader } from '@langchain/community/document_loaders/web/youtube';
 import { Document } from '@langchain/core/documents';
 import { Readability } from '@mozilla/readability';
 import axios from 'axios';
 import { JSDOM } from 'jsdom';
-import { RecursiveCharacterTextSplitter } from 'langchain/text_splitter';
-import pdfParse from 'pdf-parse';
 import { chromium, Page, Browser, BrowserContext } from 'playwright';
 import { WebPDFLoader } from '@langchain/community/document_loaders/web/pdf';
-
-export const getDocumentsFromLinks = async ({ links }: { links: string[] }) => {
-  const splitter = new RecursiveCharacterTextSplitter();
-
-  let docs: Document[] = [];
-
-  await Promise.all(
-    links.map(async (link) => {
-      link =
-        link.startsWith('http://') || link.startsWith('https://')
-          ? link
-          : `https://${link}`;
-
-      try {
-        // First, check if it's a PDF
-        const headRes = await axios.head(link);
-        const isPdf = headRes.headers['content-type'] === 'application/pdf';
-
-        if (isPdf) {
-          // Handle PDF files
-          const res = await axios.get(link, {
-            responseType: 'arraybuffer',
-          });
-
-          const pdfText = await pdfParse(res.data);
-          const parsedText = pdfText.text
-            .replace(/(\r\n|\n|\r)/gm, ' ')
-            .replace(/\s+/g, ' ')
-            .trim();
-
-          const splittedText = await splitter.splitText(parsedText);
-          const title = 'PDF Document';
-
-          const linkDocs = splittedText.map((text) => {
-            return new Document({
-              pageContent: text,
-              metadata: {
-                title: title,
-                url: link,
-              },
-            });
-          });
-
-          docs.push(...linkDocs);
-          return;
-        }
-
-        // Handle web pages using CheerioWebBaseLoader
-        const loader = new CheerioWebBaseLoader(link, {
-          selector: 'body',
-        });
-
-        const webDocs = await loader.load();
-
-        if (webDocs && webDocs.length > 0) {
-          const webDoc = webDocs[0];
-          // Parse via Readability for better content extraction
-          const dom = new JSDOM(webDoc.pageContent, { url: link });
-          const reader = new Readability(dom.window.document);
-          const article = reader.parse();
-          if (!article || !article.textContent) {
-            throw new Error('Readability parsing failed for url: ' + link);
-          }
-
-          // Normalize the text content
-          webDoc.pageContent = article.textContent
-            .split('\n')
-            .map((line) => line.trim())
-            .filter((line) => line.length > 0)
-            .join('\n');
-
-          const splittedText = await splitter.splitText(webDoc.pageContent);
-
-          const linkDocs = splittedText.map((text) => {
-            return new Document({
-              pageContent: text,
-              metadata: {
-                title: article.title || webDoc.metadata.title || link,
-                url: link,
-              },
-            });
-          });
-
-          docs.push(...linkDocs);
-        }
-      } catch (err) {
-        console.error(
-          'An error occurred while getting documents from links: ',
-          err,
-        );
-        docs.push(
-          new Document({
-            pageContent: `Failed to retrieve content from the link: ${err}`,
-            metadata: {
-              title: 'Failed to retrieve content',
-              url: link,
-            },
-          }),
-        );
-      }
-    }),
-  );
-
-  return docs;
-};
 
 export const retrievePdfDoc = async (url: string): Promise<Document | null> => {
   try {
@@ -292,7 +184,7 @@ export const getWebContent = async (
     try {
       // Wait an additional 3 seconds for no more network traffic
       await page.waitForLoadState('networkidle', { timeout: 3000 });
-    } catch (e) {
+    } catch (_e) {
       // Ignore timeout errors from waitForLoadState. This is just a best-effort wait.
       // We'll still attempt to get the content even if network isn't fully idle.
       console.warn(`Timeout waiting for networkidle on URL: ${url}`);

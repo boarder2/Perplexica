@@ -34,13 +34,6 @@ export type ModelStats = {
   usedPersonalization?: boolean;
 };
 
-export type AgentActionEvent = {
-  action: string;
-  message: string;
-  details: Record<string, any>;
-  timestamp: Date;
-};
-
 export type Message = {
   messageId: string;
   chatId: string;
@@ -78,10 +71,7 @@ interface EmbeddingModelProvider {
   name: string;
   provider: string;
 }
-interface SystemModelProvider {
-  name: string;
-  provider: string;
-}
+
 
 const SEND_LOCATION_KEY = 'personalization.sendLocationEnabled';
 const SEND_PROFILE_KEY = 'personalization.sendProfileEnabled';
@@ -267,10 +257,10 @@ const loadMessages = async (
 
   const data = await res.json();
 
-  const messages = data.messages.map((msg: any) => {
+  const messages = data.messages.map((msg: unknown) => {
     return {
-      ...msg,
-      ...JSON.parse(msg.metadata),
+      ...(msg as Record<string, unknown>),
+      ...JSON.parse((msg as Record<string, string>).metadata),
     };
   }) as Message[];
 
@@ -284,7 +274,7 @@ const loadMessages = async (
 
   document.title = messages[0].content;
 
-  const files = data.chat.files.map((file: any) => {
+  const files = data.chat.files.map((file: Record<string, string>) => {
     return {
       fileName: file.name,
       fileExtension: file.name.split('.').pop(),
@@ -302,7 +292,7 @@ const loadMessages = async (
 
 const ChatWindow = ({ id }: { id?: string }) => {
   const searchParams = useSearchParams();
-  const router = useRouter();
+  const _router = useRouter();
   const initialMessage = searchParams.get('q');
 
   const [chatId, setChatId] = useState<string | undefined>(id);
@@ -333,7 +323,7 @@ const ChatWindow = ({ id }: { id?: string }) => {
       setIsConfigReady,
       setHasError,
     );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, []);
 
   const [loading, setLoading] = useState(false);
@@ -567,7 +557,8 @@ const ChatWindow = ({ id }: { id?: string }) => {
       window.history.replaceState({}, '', `/c/${chatId}`);
     }
 
-    const messageHandler = async (data: any) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const messageHandler = async (data: Record<string, any>) => {
       if (data.type === 'error') {
         toast.error(data.data);
         setLoading(false);
@@ -762,7 +753,7 @@ const ChatWindow = ({ id }: { id?: string }) => {
           console.log('ChatWindow: Subagent response token:', {
             executionId,
             tokenLength: token.length,
-            token: token.substring(0, 50)
+            token: token.substring(0, 50),
           });
           setMessages((prev) =>
             prev.map((message) => {
@@ -776,7 +767,7 @@ const ChatWindow = ({ id }: { id?: string }) => {
                   subagentRegex,
                   (match, attrs) => {
                     // Extract existing responseText
-                    const responseMatch = attrs.match(/responseText="([^"]*)"/); 
+                    const responseMatch = attrs.match(/responseText="([^"]*)"/);
                     let existingText = '';
                     if (responseMatch) {
                       existingText = responseMatch[1]
@@ -806,7 +797,7 @@ const ChatWindow = ({ id }: { id?: string }) => {
                     console.log('ChatWindow: Updated responseText attr:', {
                       executionId,
                       textLength: newText.length,
-                      escapedLength: escapedText.length
+                      escapedLength: escapedText.length,
                     });
 
                     return `<SubagentExecution id="${executionId}"${updatedAttrs}>`;
@@ -830,9 +821,15 @@ const ChatWindow = ({ id }: { id?: string }) => {
 
         // Convert tool call event to ToolCall markup
         let toolCallMarkup = '';
-        if (nestedEvent.type === 'tool_call_started' && nestedEvent.data?.content) {
+        if (
+          nestedEvent.type === 'tool_call_started' &&
+          nestedEvent.data?.content
+        ) {
           toolCallMarkup = nestedEvent.data.content;
-        } else if (nestedEvent.type === 'tool_call_success' && nestedEvent.data?.toolCallId) {
+        } else if (
+          nestedEvent.type === 'tool_call_success' &&
+          nestedEvent.data?.toolCallId
+        ) {
           // Success event will update existing ToolCall, handle in next block
           setMessages((prev) =>
             prev.map((message) => {
@@ -845,7 +842,10 @@ const ChatWindow = ({ id }: { id?: string }) => {
                 const updatedContent = message.content.replace(
                   toolCallRegex,
                   (match, attrs) => {
-                    let updated = attrs.replace(/status="[^"]*"/, 'status="success"');
+                    let updated = attrs.replace(
+                      /status="[^"]*"/,
+                      'status="success"',
+                    );
                     if (!updated.includes('status=')) {
                       updated += ' status="success"';
                     }
@@ -858,7 +858,10 @@ const ChatWindow = ({ id }: { id?: string }) => {
             }),
           );
           return;
-        } else if (nestedEvent.type === 'tool_call_error' && nestedEvent.data?.toolCallId) {
+        } else if (
+          nestedEvent.type === 'tool_call_error' &&
+          nestedEvent.data?.toolCallId
+        ) {
           // Error event will update existing ToolCall
           setMessages((prev) =>
             prev.map((message) => {
@@ -870,7 +873,10 @@ const ChatWindow = ({ id }: { id?: string }) => {
                 const updatedContent = message.content.replace(
                   toolCallRegex,
                   (match, attrs) => {
-                    let updated = attrs.replace(/status="[^"]*"/, 'status="error"');
+                    let updated = attrs.replace(
+                      /status="[^"]*"/,
+                      'status="error"',
+                    );
                     if (!updated.includes('status=')) {
                       updated += ' status="error"';
                     }
@@ -910,7 +916,10 @@ const ChatWindow = ({ id }: { id?: string }) => {
               const updatedContent = message.content.replace(
                 subagentRegex,
                 (match, openTag, content, closeTag) => {
-                  console.log('ChatWindow: Inserting ToolCall, existing content length:', content.length);
+                  console.log(
+                    'ChatWindow: Inserting ToolCall, existing content length:',
+                    content.length,
+                  );
                   return `${openTag}${content}${toolCallMarkup}\n${closeTag}`;
                 },
               );
@@ -1169,7 +1178,7 @@ const ChatWindow = ({ id }: { id?: string }) => {
       localStorage.getItem('systemModelProvider') || modelProvider;
     const systemModelName = localStorage.getItem('systemModel') || modelName;
 
-    const payload: Record<string, any> = {
+    const payload: Record<string, unknown> = {
       content: message,
       message: {
         messageId: messageId,
@@ -1237,7 +1246,7 @@ const ChatWindow = ({ id }: { id?: string }) => {
           messageHandler(json);
         }
         partialChunk = '';
-      } catch (error) {
+      } catch (_error) {
         console.warn('Incomplete JSON, waiting for next chunk...');
       }
     }

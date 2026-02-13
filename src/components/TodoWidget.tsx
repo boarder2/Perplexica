@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import {
   CheckCircle2,
   Circle,
@@ -35,10 +35,7 @@ const TodoWidget = ({ items }: TodoWidgetProps) => {
         return <CheckCircle2 size={14} className="text-green-500 shrink-0" />;
       case 'in_progress':
         return (
-          <Loader2
-            size={14}
-            className="animate-spin text-accent shrink-0"
-          />
+          <Loader2 size={14} className="animate-spin text-accent shrink-0" />
         );
       case 'pending':
       default:

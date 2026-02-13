@@ -155,7 +155,7 @@ export class SubagentExecutor {
 
       this.emitSubagentEvent('subagent_completed', execution);
       return execution;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error(
         `SubagentExecutor: Error in ${this.definition.name}:`,
         error,
@@ -172,7 +172,7 @@ export class SubagentExecutor {
         endTime,
         documents: [],
         summary: '',
-        error: error.message || 'Unknown error',
+        error: (error instanceof Error ? error.message : null) || 'Unknown error',
       };
 
       this.emitSubagentEvent('subagent_error', execution);
@@ -183,7 +183,7 @@ export class SubagentExecutor {
   /**
    * Filter available tools based on subagent's allowed tools list
    */
-  private getFilteredTools(): any[] {
+  private getFilteredTools(): typeof allAgentTools {
     // Get all available tools
     const availableTools = [...allAgentTools];
 
@@ -196,11 +196,6 @@ export class SubagentExecutor {
 
     // If no allowed tools specified, return all tools
     return availableTools;
-  }
-
-  /**
-   *  return execution;
-    }
   }
 
   /**
@@ -235,7 +230,7 @@ export class SubagentExecutor {
   /**
    * Emit a subagent-specific event to the parent emitter
    */
-  private emitSubagentEvent(type: string, data: any): void {
+  private emitSubagentEvent(type: string, data: Record<string, unknown> | SubagentExecution): void {
     this.parentEmitter.emit(
       'data',
       JSON.stringify({

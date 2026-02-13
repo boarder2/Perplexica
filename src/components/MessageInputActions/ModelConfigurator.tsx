@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Cpu, ChevronDown, Link } from 'lucide-react';
+import { Cpu, Link } from 'lucide-react';
 import {
   Dialog,
   DialogPanel,
@@ -56,6 +56,7 @@ export default function ModelConfigurator({
       const chatProvider = localStorage.getItem(STORAGE_KEYS.chatProvider);
       const chat = localStorage.getItem(STORAGE_KEYS.chatModel);
       if (chatProvider && chat) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setChatModel({ provider: chatProvider, model: chat });
       }
 
@@ -95,6 +96,7 @@ export default function ModelConfigurator({
       linkSystemToChat ? 'true' : 'false',
     );
     if (linkSystemToChat && chatModel) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSystemModel(chatModel);
       localStorage.setItem(STORAGE_KEYS.systemProvider, chatModel.provider);
       localStorage.setItem(STORAGE_KEYS.systemModel, chatModel.model);

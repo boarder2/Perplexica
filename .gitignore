@@ -42,3 +42,5 @@ db.sqlite
 .ai/
 certificates
 storage/
+package-lock.json
+tsconfig.tsbuildinfo

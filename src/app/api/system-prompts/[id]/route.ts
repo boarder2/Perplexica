@@ -17,7 +17,7 @@ export async function PUT(
       );
     }
 
-    const updateData: any = {
+    const updateData: { name: string; content: string; updatedAt: Date; type: 'system' | 'persona' } = {
       name,
       content,
       updatedAt: new Date(),

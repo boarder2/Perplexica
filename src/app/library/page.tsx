@@ -2,7 +2,7 @@
 
 import DeleteChat from '@/components/DeleteChat';
 import { cn, formatTimeDifference } from '@/lib/utils';
-import { BookOpenText, ClockIcon, Delete, ScanEye } from 'lucide-react';
+import { BookOpenText, ClockIcon } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 
@@ -49,6 +49,7 @@ const Page = () => {
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchPage(0);
   }, []);
 
@@ -85,9 +86,9 @@ const Page = () => {
           fetchPage(offset);
         }
       };
-      (window as any).addEventListener('scroll', onScroll);
+      (window as unknown as Window).addEventListener('scroll', onScroll);
       cleanup = () => {
-        (window as any).removeEventListener('scroll', onScroll);
+        (window as unknown as Window).removeEventListener('scroll', onScroll);
       };
     }
 

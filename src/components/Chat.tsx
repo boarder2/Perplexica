@@ -152,7 +152,7 @@ const Chat = ({
       }
     };
 
-    const handleTouchStart = (e: TouchEvent) => {
+    const handleTouchStart = (_e: TouchEvent) => {
       // Immediately stop auto-scrolling on any touch interaction
       setManuallyScrolledUp(true);
     };
@@ -180,6 +180,7 @@ const Chat = ({
     // Always scroll when user sends a message
     if (messages[messages.length - 1]?.role === 'user') {
       scroll();
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setIsAtBottom(true); // Reset to true when user sends a message
       setManuallyScrolledUp(false); // Reset manually scrolled flag when user sends a message
     }
@@ -190,6 +191,7 @@ const Chat = ({
     const position = window.innerHeight + window.scrollY;
     const height = document.body.scrollHeight;
     const atBottom = position >= height - SCROLL_THRESHOLD;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsAtBottom(atBottom);
 
     if (isAtBottom && !manuallyScrolledUp && messages.length > 0) {
@@ -228,6 +230,7 @@ const Chat = ({
       const lastUserMsg = [...messages]
         .reverse()
         .find((m) => m.role === 'user');
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setCurrentMessageId(lastUserMsg?.messageId);
       //console.log('Set currentMessageId to', lastUserMsg?.messageId, messages);
     } else {
@@ -244,7 +247,7 @@ const Chat = ({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ messageId: currentMessageId }),
       });
-    } catch (e) {
+    } catch (_e) {
       // Optionally handle error
     }
   };
@@ -309,9 +312,7 @@ const Chat = ({
           </div>
         )}
 
-        {todoItems && todoItems.length > 0 && (
-          <TodoWidget items={todoItems} />
-        )}
+        {todoItems && todoItems.length > 0 && <TodoWidget items={todoItems} />}
         <MessageInput
           firstMessage={messages.length === 0}
           loading={loading}

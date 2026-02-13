@@ -5,7 +5,6 @@ import {
   DashboardState,
   DashboardConfig,
   DashboardLayouts,
-  GridLayoutItem,
   DASHBOARD_STORAGE_KEYS,
 } from '@/lib/types/dashboard';
 import { WidgetCache } from '@/lib/types/cache';
@@ -22,7 +21,7 @@ const requestLocationPermission = async (): Promise<string | undefined> => {
       return undefined;
     }
 
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve, _reject) => {
       navigator.geolocation.getCurrentPosition(
         (position) => {
           const { latitude, longitude } = position.coords;
@@ -195,8 +194,8 @@ export const useDashboard = (): UseDashboardReturn => {
       // Find the next available position in the grid
       const getNextPosition = () => {
         const existingWidgets = state.widgets;
-        let x = 0;
-        let y = 0;
+        const _x = 0;
+        const _y = 0;
 
         // Simple algorithm: try to place in first available spot
         for (let row = 0; row < 20; row++) {
@@ -412,7 +411,7 @@ export const useDashboard = (): UseDashboardReturn => {
             ),
           }));
         }
-      } catch (error) {
+      } catch (_error) {
         setState((prev) => ({
           ...prev,
           widgets: prev.widgets.map((w) =>

@@ -17,7 +17,7 @@ interface ChatModel {
 }
 
 interface SuggestionsGenerationBody {
-  chatHistory: any[];
+  chatHistory: { role: string; content: string }[];
   chatModel?: ChatModel;
   selectedSystemPromptIds?: string[];
 }
@@ -27,7 +27,7 @@ export const POST = async (req: Request) => {
     const body: SuggestionsGenerationBody = await req.json();
 
     const chatHistory = body.chatHistory
-      .map((msg: any) => {
+      .map((msg: { role: string; content: string }) => {
         if (msg.role === 'user') {
           return new HumanMessage(msg.content);
         } else if (msg.role === 'assistant') {

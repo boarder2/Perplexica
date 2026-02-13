@@ -31,7 +31,7 @@ export async function GET(request: Request) {
   // If BASE_URL is configured, use it, otherwise detect from request
   if (configBaseUrl) {
     // Remove any trailing slashes for consistency
-    let origin = configBaseUrl.replace(/\/+$/, '');
+    const origin = configBaseUrl.replace(/\/+$/, '');
     return generateOpenSearchResponse(origin);
   }
 

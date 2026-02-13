@@ -1,9 +1,7 @@
 import {
   BookUser,
-  ChevronDown,
   CheckSquare,
   Square,
-  Settings,
   User,
   Loader2,
   Info,

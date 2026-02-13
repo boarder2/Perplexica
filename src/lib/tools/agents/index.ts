@@ -7,8 +7,6 @@
  * state management.
  */
 
-// Import all agent tools (will be uncommented as tools are implemented)
-import { taskManagerTool } from './taskManagerTool';
 import { simpleWebSearchTool } from './simpleWebSearchTool';
 import { fileSearchTool } from './fileSearchTool';
 import { imageSearchTool } from './imageSearchTool';
@@ -18,7 +16,6 @@ import { pdfLoaderTool } from './pdfLoaderTool';
 import { deepResearchTool } from './deepResearchTool';
 import { todoListTool } from './todoListTool';
 
-export { taskManagerTool };
 export { simpleWebSearchTool };
 export { fileSearchTool };
 export { imageSearchTool };
@@ -30,7 +27,6 @@ export { todoListTool };
 // Array containing all available agent tools for the simplified chat agent
 // This will be used by the createReactAgent implementation
 export const allAgentTools = [
-  //taskManagerTool,
   simpleWebSearchTool,
   fileSearchTool,
   urlSummarizationTool,
@@ -52,11 +48,7 @@ export const webSearchTools = [
   todoListTool,
 ];
 
-export const fileSearchTools = [
-  fileSearchTool,
-];
+export const fileSearchTools = [fileSearchTool];
 
 // Core tools that are always available
-export const coreTools = [
-  //taskManagerTool
-];
+export const coreTools: typeof allAgentTools = [];

@@ -96,7 +96,7 @@ const handleEmitterEvents = async (
   usedPersonalization: boolean,
 ) => {
   let recievedMessage = '';
-  let sources: any[] = [];
+  let sources: Record<string, unknown>[] = [];
   let searchQuery: string | undefined;
   let searchUrl: string | undefined;
   let isStreamActive = true;
@@ -113,7 +113,7 @@ const handleEmitterEvents = async (
             }) + '\n',
           ),
         );
-      } catch (error) {
+      } catch (_error) {
         // If writing fails, the connection is likely closed
         clearInterval(pingInterval);
         isStreamActive = false;
@@ -218,7 +218,7 @@ const handleEmitterEvents = async (
           }) + '\n',
         ),
       );
-      
+
       // Update received message for persistence if needed
       if (parsedData.type === 'subagent_started') {
         const markup = `<SubagentExecution id="${parsedData.executionId}" name="${parsedData.name}" task="${parsedData.task}" status="running"></SubagentExecution>\n`;
@@ -228,7 +228,10 @@ const handleEmitterEvents = async (
         const nestedEvent = parsedData.data;
         const executionId = parsedData.subagentId;
 
-        if (nestedEvent?.type === 'tool_call_started' && nestedEvent.data?.content) {
+        if (
+          nestedEvent?.type === 'tool_call_started' &&
+          nestedEvent.data?.content
+        ) {
           // Insert ToolCall markup inside the SubagentExecution tag
           const subagentRegex = new RegExp(
             `(<SubagentExecution\\s+id="${executionId}"[^>]*>)(.*?)(</SubagentExecution>)`,
@@ -240,13 +243,19 @@ const handleEmitterEvents = async (
               return `${openTag}${content}${nestedEvent.data.content}\n${closeTag}`;
             },
           );
-        } else if (nestedEvent?.type === 'tool_call_success' && nestedEvent.data?.toolCallId) {
+        } else if (
+          nestedEvent?.type === 'tool_call_success' &&
+          nestedEvent.data?.toolCallId
+        ) {
           recievedMessage = updateToolCallMarkup(
             recievedMessage,
             nestedEvent.data.toolCallId,
             { status: 'success' },
           );
-        } else if (nestedEvent?.type === 'tool_call_error' && nestedEvent.data?.toolCallId) {
+        } else if (
+          nestedEvent?.type === 'tool_call_error' &&
+          nestedEvent.data?.toolCallId
+        ) {
           recievedMessage = updateToolCallMarkup(
             recievedMessage,
             nestedEvent.data.toolCallId,
@@ -261,7 +270,8 @@ const handleEmitterEvents = async (
         parsedData.type === 'subagent_error'
       ) {
         // Update the SubagentExecution markup in received message
-        const status = parsedData.type === 'subagent_completed' ? 'success' : 'error';
+        const status =
+          parsedData.type === 'subagent_completed' ? 'success' : 'error';
         const executionId = parsedData.id;
         const subagentRegex = new RegExp(
           `<SubagentExecution\\s+id="${executionId}"([^>]*)>(.*?)<\\/SubagentExecution>`,
@@ -349,7 +359,7 @@ const handleEmitterEvents = async (
             }) + '\n',
           ),
         );
-      } catch (e) {
+      } catch (_e) {
         // Ignore write errors if stream closed
       }
     }
@@ -525,7 +535,7 @@ export const POST = async (req: Request) => {
 
     let chatLlm: BaseChatModel | undefined;
     let systemLlm: BaseChatModel | undefined;
-    let embedding = new CachedEmbeddings(
+    const embedding = new CachedEmbeddings(
       embeddingModel.model,
       body.embeddingModel?.provider || Object.keys(embeddingModelProviders)[0],
       body.embeddingModel?.name || Object.keys(embeddingProvider)[0],

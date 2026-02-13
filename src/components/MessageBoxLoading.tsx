@@ -180,7 +180,7 @@ const MessageBoxLoading = ({
                           body: JSON.stringify({ messageId: actionMessageId }),
                         });
                       }
-                    } catch (e) {
+                    } catch (_e) {
                       // no-op
                     }
                   }}

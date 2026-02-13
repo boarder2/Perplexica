@@ -24,7 +24,7 @@ const SearchImages = ({
   const [images, setImages] = useState<Image[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
-  const [slides, setSlides] = useState<any[]>([]);
+  const [slides, setSlides] = useState<{ src: string }[]>([]);
   const [displayLimit, setDisplayLimit] = useState(10); // Initially show only 10 images
   const loadedMessageIdsRef = useRef<Set<string>>(new Set());
 

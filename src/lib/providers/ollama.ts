@@ -25,7 +25,7 @@ export const loadOllamaChatModels = async () => {
 
     const chatModels: Record<string, ChatModel> = {};
 
-    models.forEach((model: any) => {
+    models.forEach((model: Record<string, string>) => {
       chatModels[model.model] = {
         displayName: model.name,
         model: new ChatOllama({
@@ -60,7 +60,7 @@ export const loadOllamaEmbeddingModels = async () => {
 
     const embeddingModels: Record<string, EmbeddingModel> = {};
 
-    models.forEach((model: any) => {
+    models.forEach((model: Record<string, string>) => {
       embeddingModels[model.model] = {
         displayName: model.name,
         model: new OllamaEmbeddings({

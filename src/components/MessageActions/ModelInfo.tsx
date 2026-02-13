@@ -3,7 +3,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Info } from 'lucide-react';
 import { ModelStats } from '../ChatWindow';
-import { cn } from '@/lib/utils';
 import TokenPill from '@/components/common/TokenPill';
 
 interface ModelInfoButtonProps {

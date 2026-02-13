@@ -24,7 +24,6 @@ const Attach = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-
     setLoading(true);
     const data = new FormData();
 
@@ -57,7 +56,7 @@ const Attach = ({
     const resData = await res.json();
 
     setFiles([...files, ...resData.files]);
-    setFileIds([...fileIds, ...resData.files.map((file: any) => file.fileId)]);
+    setFileIds([...fileIds, ...resData.files.map((file: Record<string, string>) => file.fileId)]);
     setLoading(false);
   };
 

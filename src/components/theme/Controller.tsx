@@ -10,14 +10,6 @@ type Props = {
 export default function ThemeController({ children }: Props) {
   const [mounted, setMounted] = useState(false);
 
-  useEffect(() => {
-    setMounted(true);
-    const savedTheme = (localStorage.getItem('appTheme') as AppTheme) || 'dark';
-    const userBg = localStorage.getItem('userBg') || '';
-    const userAccent = localStorage.getItem('userAccent') || '';
-    applyTheme(savedTheme, userBg, userAccent);
-  }, []);
-
   const applyTheme = (mode: AppTheme, bg?: string, accent?: string) => {
     const root = document.documentElement;
     root.setAttribute('data-theme', mode);
@@ -77,6 +69,16 @@ export default function ThemeController({ children }: Props) {
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setMounted(true);
+    const savedTheme = (localStorage.getItem('appTheme') as AppTheme) || 'dark';
+    const userBg = localStorage.getItem('userBg') || '';
+    const userAccent = localStorage.getItem('userAccent') || '';
+    applyTheme(savedTheme, userBg, userAccent);
+  }, []);
+
+  useEffect(() => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (window as any).__setAppTheme = (
       mode: AppTheme,
       bg?: string,
@@ -133,9 +135,9 @@ function adjustLightness(hex: string, delta: number): string {
   // delta in [-1, 1] add to perceived lightness roughly
   const { r, g, b } = hexToRgb(hex);
   // convert to HSL
-  let { h, s, l } = rgbToHsl(r, g, b);
-  l = Math.max(0, Math.min(1, l + delta));
-  const { r: nr, g: ng, b: nb } = hslToRgb(h, s, l);
+  const { h, s, l } = rgbToHsl(r, g, b);
+  const adjustedL = Math.max(0, Math.min(1, l + delta));
+  const { r: nr, g: ng, b: nb } = hslToRgb(h, s, adjustedL);
   return rgbToHex(nr, ng, nb);
 }
 

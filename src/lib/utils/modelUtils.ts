@@ -8,33 +8,32 @@ import { BaseChatModel } from '@langchain/core/language_models/chat_models';
  */
 export function getModelName(llm: BaseChatModel): string {
   try {
-    // @ts-ignore - Different LLM implementations have different properties
+    // @ts-expect-error -- Different LLM implementations have different properties
     if (llm.modelName) {
-      // @ts-ignore
+      // @ts-expect-error -- accessing dynamic LLM properties
       return llm.modelName;
     }
 
-    // @ts-ignore
+    // @ts-expect-error -- accessing dynamic LLM properties
     if (llm._llm && llm._llm.modelName) {
-      // @ts-ignore
+      // @ts-expect-error -- accessing dynamic LLM properties
       return llm._llm.modelName;
     }
 
-    // @ts-ignore
+    // @ts-expect-error -- accessing dynamic LLM properties
     if (llm.model && llm.model.modelName) {
-      // @ts-ignore
+      // @ts-expect-error -- accessing dynamic LLM properties
       return llm.model.modelName;
     }
 
     if ('model' in llm) {
-      // @ts-ignore
       const model = llm.model;
       if (typeof model === 'string') {
         return model;
       }
-      // @ts-ignore
+      // @ts-expect-error -- accessing dynamic LLM properties
       if (model && model.modelName) {
-        // @ts-ignore
+        // @ts-expect-error -- accessing dynamic LLM properties
         return model.modelName;
       }
     }
@@ -53,9 +52,8 @@ export function getModelName(llm: BaseChatModel): string {
 
 export function setTemperature(llm: BaseChatModel, temperature?: number) {
   try {
-    // @ts-ignore - Different LLM implementations have different properties
     if ('temperature' in llm) {
-      (llm as any).temperature = temperature;
+      (llm as unknown as Record<string, unknown>).temperature = temperature;
     }
   } catch (e) {
     console.error('Failed to set temperature:', e);

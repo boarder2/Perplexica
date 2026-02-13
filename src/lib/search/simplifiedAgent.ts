@@ -16,13 +16,13 @@ import {
 } from '@/lib/tracing/langfuse';
 import { encodeHtmlAttribute } from '@/lib/utils/html';
 import { isSoftStop } from '@/lib/utils/runControl';
-import { Embeddings } from '@langchain/core/embeddings';
 import { BaseChatModel } from '@langchain/core/language_models/chat_models';
-import { AIMessage, BaseMessage, HumanMessage } from '@langchain/core/messages';
+import { BaseMessage, HumanMessage } from '@langchain/core/messages';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
 import { RunnableConfig, RunnableSequence } from '@langchain/core/runnables';
 import { createReactAgent } from '@langchain/langgraph/prebuilt';
 import { EventEmitter } from 'events';
+import { Document } from 'langchain/document';
 import { webSearchResponsePrompt } from '../prompts/webSearch';
 import { formatDateForLLM } from '../utils';
 import { removeThinkingBlocksFromMessages } from '../utils/contentUtils';
@@ -33,7 +33,7 @@ import { buildPersonalizationSection } from '../utils/personalization';
 /**
  * Normalize usage metadata from different LLM providers
  */
-function normalizeUsageMetadata(usageData: any): {
+function normalizeUsageMetadata(usageData: Record<string, number>): {
   input_tokens: number;
   output_tokens: number;
   total_tokens: number;
@@ -121,7 +121,7 @@ export class SimplifiedAgent {
     messagesCount?: number,
     query?: string,
     firefoxAIDetected?: boolean,
-    customTools?: any[],
+    customTools?: typeof allAgentTools,
     customSystemPrompt?: string,
   ) {
     // Select appropriate tools based on focus mode and available files
@@ -276,7 +276,7 @@ export class SimplifiedAgent {
     history: BaseMessage[] = [],
     fileIds: string[] = [],
     focusMode: string = 'webSearch',
-    customTools?: any[],
+    customTools?: typeof allAgentTools,
     customSystemPrompt?: string,
   ): Promise<void> {
     try {
@@ -300,7 +300,7 @@ export class SimplifiedAgent {
       const containsSelection = trimmed.includes('<selection>');
       const firefoxAIDetected =
         (startsWithAscii || startsWithCurly) && containsSelection;
-      let toolCalls: Record<string, string> = {};
+      const toolCalls: Record<string, string> = {};
 
       // Initialize agent with the provided focus mode and file context
       // Pass the number of messages that will be sent to the LLM so prompts can adapt.
@@ -398,25 +398,26 @@ export class SimplifiedAgent {
                     }
                   }
                   if (input && typeof input === 'object') {
-                    if (typeof (input as any).query === 'string') {
+                    const inputObj = input as Record<string, unknown>;
+                    if (typeof inputObj.query === 'string') {
                       // Encode query as attribute (basic escaping)
                       const q = encodeHtmlAttribute(
-                        (input as any).query.slice(0, 200),
+                        inputObj.query.slice(0, 200),
                       );
                       extraAttr += ` query="${q}"`;
                     }
-                    if (Array.isArray((input as any).urls)) {
-                      const count = (input as any).urls.length;
+                    if (Array.isArray(inputObj.urls)) {
+                      const count = inputObj.urls.length;
                       extraAttr += ` count="${count}"`;
                     }
-                    if (typeof (input as any).pdfUrl === 'string') {
+                    if (typeof inputObj.pdfUrl === 'string') {
                       const u = encodeHtmlAttribute(
-                        (input as any).pdfUrl.slice(0, 300),
+                        inputObj.pdfUrl.slice(0, 300),
                       );
                       extraAttr += ` url="${u}"`;
                     }
                   }
-                } catch (attrErr) {
+                } catch (_attrErr) {
                   // Ignore attribute extraction errors
                 }
 
@@ -461,7 +462,7 @@ export class SimplifiedAgent {
                   extra = { videoId: String(videoId) };
                 }
               }
-              toolCalls[runId] && delete toolCalls[runId];
+              if (toolCalls[runId]) delete toolCalls[runId];
 
               // Emit success update so UI can swap spinner for checkmark
               try {
@@ -521,15 +522,14 @@ export class SimplifiedAgent {
         ],
       });
 
-      let finalResult: any = null;
-      let collectedDocuments: any[] = [];
+      let finalResult: { messages?: BaseMessage[]; relevantDocuments?: Document[] } | null = null;
+      const collectedDocuments: Document[] = [];
       let currentResponseBuffer = '';
       // Separate usage trackers for chat (final answer) and system (tools/internal chains)
-      let usageChat = { input_tokens: 0, output_tokens: 0, total_tokens: 0 };
-      let usageSystem = { input_tokens: 0, output_tokens: 0, total_tokens: 0 };
+      const usageChat = { input_tokens: 0, output_tokens: 0, total_tokens: 0 };
+      const usageSystem = { input_tokens: 0, output_tokens: 0, total_tokens: 0 };
 
       let initialMessageSent = false;
-      let respondNowTriggered = false;
 
       try {
         // Process the event stream
@@ -561,7 +561,7 @@ export class SimplifiedAgent {
             }
           }
 
-          const emitNewDocs = (newDocs: any[]) => {
+          const emitNewDocs = (newDocs: Document[]) => {
             //Group by metadata.searchQuery and emit separate source blocks for each
             const groupedBySearchQuery = newDocs.reduce(
               (acc, doc) => {
@@ -636,7 +636,7 @@ export class SimplifiedAgent {
           // Handle streaming tool calls (for thought messages)
           if (event.event === 'on_chat_model_end' && event.data.output) {
             const output = event.data.output;
-            const nameLower = (event.name || '').toLowerCase();
+            const _nameLower = (event.name || '').toLowerCase();
             console.log(`SimplifiedAgent: on_chat_model_end`, event);
             const isToolContext =
               output.tool_calls && output.tool_calls.length > 0;
@@ -774,7 +774,7 @@ export class SimplifiedAgent {
             }
           }
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         if (
           this.retrievalSignal &&
           this.retrievalSignal.aborted &&
@@ -783,7 +783,7 @@ export class SimplifiedAgent {
           // If respond-now was triggered, run a quick synthesis from collected context before finalization
 
           const docsString = collectedDocuments
-            .map((doc: any, idx: number) => {
+            .map((doc, idx: number) => {
               const meta = doc?.metadata || {};
               const title = meta.title || meta.url || `Source ${idx + 1}`;
               const url = meta.url || '';
@@ -896,7 +896,7 @@ ${url ? `<url>${url}</url>` : ''}
         if (finalMessage && finalMessage.content) {
           console.log('SimplifiedAgent: Emitting complete response (fallback)');
 
-          this.emitResponse(finalMessage.content);
+          this.emitResponse(finalMessage.content as string);
         }
       }
 
@@ -943,7 +943,7 @@ ${url ? `<url>${url}</url>` : ''}
       );
 
       this.emitter.emit('end');
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('SimplifiedAgent: Error during search and answer:', error);
 
       // Handle specific error types

@@ -9,7 +9,7 @@ import {
   Layers,
   List,
 } from 'lucide-react';
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { Responsive, WidthProvider } from 'react-grid-layout';
 import {
   Card,
@@ -23,10 +23,43 @@ import WidgetConfigModal from '@/components/dashboard/WidgetConfigModal';
 import WidgetDisplay from '@/components/dashboard/WidgetDisplay';
 import { useDashboard } from '@/lib/hooks/useDashboard';
 import { Widget, WidgetConfig } from '@/lib/types/widget';
+import { DashboardLayouts } from '@/lib/types/dashboard';
 import { DASHBOARD_CONSTRAINTS } from '@/lib/constants/dashboard';
 import { toast } from 'sonner';
+import { Layout, Layouts } from 'react-grid-layout';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
+
+const EmptyDashboard = ({ onAddWidget }: { onAddWidget: () => void }) => (
+  <div className="col-span-2 flex justify-center items-center min-h-[400px]">
+    <Card className="w-96 text-center">
+      <CardHeader>
+        <CardTitle>Welcome to your Dashboard</CardTitle>
+        <CardDescription>
+          Create your first widget to get started with personalized
+          information
+        </CardDescription>
+      </CardHeader>
+
+      <CardContent>
+        <p className="text-sm text-fg/60 mb-4">
+          Widgets let you fetch content from any URL and process it with AI to
+          show exactly what you need.
+        </p>
+      </CardContent>
+
+      <CardFooter className="justify-center">
+        <button
+          onClick={onAddWidget}
+          className="px-4 py-2 bg-accent text-white rounded hover:bg-accent-700 transition duration-200 flex items-center space-x-2"
+        >
+          <Plus size={16} />
+          <span>Create Your First Widget</span>
+        </button>
+      </CardFooter>
+    </Card>
+  </div>
+);
 
 const DashboardPage = () => {
   const {
@@ -87,13 +120,13 @@ const DashboardPage = () => {
     setEditingWidget(null);
   };
 
-  const handleDeleteWidget = (widgetId: string) => {
+  const handleDeleteWidget = useCallback((widgetId: string) => {
     deleteWidget(widgetId);
-  };
+  }, [deleteWidget]);
 
-  const handleRefreshWidget = (widgetId: string) => {
+  const handleRefreshWidget = useCallback((widgetId: string) => {
     refreshWidget(widgetId, true); // Force refresh when manually triggered
-  };
+  }, [refreshWidget]);
 
   const handleRefreshAll = () => {
     refreshAllWidgets(true);
@@ -128,8 +161,8 @@ const DashboardPage = () => {
   };
 
   // Handle layout changes from react-grid-layout
-  const handleLayoutChange = (layout: any, layouts: any) => {
-    updateLayouts(layouts);
+  const handleLayoutChange = (_layout: Layout[], layouts: Layouts) => {
+    updateLayouts(layouts as DashboardLayouts);
   };
 
   // Memoize grid children to prevent unnecessary re-renders
@@ -144,39 +177,7 @@ const DashboardPage = () => {
         />
       </div>
     ));
-  }, [widgets]);
-
-  // Empty state component
-  const EmptyDashboard = () => (
-    <div className="col-span-2 flex justify-center items-center min-h-[400px]">
-      <Card className="w-96 text-center">
-        <CardHeader>
-          <CardTitle>Welcome to your Dashboard</CardTitle>
-          <CardDescription>
-            Create your first widget to get started with personalized
-            information
-          </CardDescription>
-        </CardHeader>
-
-        <CardContent>
-          <p className="text-sm text-fg/60 mb-4">
-            Widgets let you fetch content from any URL and process it with AI to
-            show exactly what you need.
-          </p>
-        </CardContent>
-
-        <CardFooter className="justify-center">
-          <button
-            onClick={handleAddWidget}
-            className="px-4 py-2 bg-accent text-white rounded hover:bg-accent-700 transition duration-200 flex items-center space-x-2"
-          >
-            <Plus size={16} />
-            <span>Create Your First Widget</span>
-          </button>
-        </CardFooter>
-      </Card>
-    </div>
-  );
+  }, [widgets, handleDeleteWidget, handleRefreshWidget]);
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -247,7 +248,7 @@ const DashboardPage = () => {
             </div>
           </div>
         ) : widgets.length === 0 ? (
-          <EmptyDashboard />
+          <EmptyDashboard onAddWidget={handleAddWidget} />
         ) : (
           <ResponsiveGrid
             className="layout"

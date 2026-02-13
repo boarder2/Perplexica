@@ -9,7 +9,7 @@ export const PROVIDER_INFO = {
 import { BaseChatModel } from '@langchain/core/language_models/chat_models';
 const ANTHROPIC_MODELS_ENDPOINT = 'https://api.anthropic.com/v1/models';
 
-async function fetchAnthropicModels(apiKey: string): Promise<any[]> {
+async function fetchAnthropicModels(apiKey: string): Promise<Record<string, unknown>[]> {
   const resp = await fetch(ANTHROPIC_MODELS_ENDPOINT, {
     method: 'GET',
     headers: {
@@ -39,18 +39,18 @@ export const loadAnthropicChatModels = async () => {
   try {
     const models = await fetchAnthropicModels(anthropicApiKey);
     const anthropicChatModels = models
-      .map((model: any) => {
+      .map((model: Record<string, unknown>) => {
         const id = model && model.id ? String(model.id) : '';
         const display =
           model && model.display_name ? String(model.display_name) : id;
         return { id, display };
       })
-      .filter((model: any) => model.id)
-      .sort((a: any, b: any) => a.display.localeCompare(b.display));
+      .filter((model: { id: string; display: string }) => model.id)
+      .sort((a: { id: string; display: string }, b: { id: string; display: string }) => a.display.localeCompare(b.display));
 
     const chatModels: Record<string, ChatModel> = {};
 
-    anthropicChatModels.forEach((model: any) => {
+    anthropicChatModels.forEach((model: { id: string; display: string }) => {
       chatModels[model.id] = {
         displayName: model.display,
         model: new ChatAnthropic({

@@ -18,7 +18,7 @@ interface ChatModel {
 
 interface ImageSearchBody {
   query: string;
-  chatHistory: any[];
+  chatHistory: { role: string; content: string }[];
   chatModel?: ChatModel;
   selectedSystemPromptIds?: string[];
 }
@@ -28,7 +28,7 @@ export const POST = async (req: Request) => {
     const body: ImageSearchBody = await req.json();
 
     const chatHistory = body.chatHistory
-      .map((msg: any) => {
+      .map((msg: { role: string; content: string }) => {
         if (msg.role === 'user') {
           return new HumanMessage(msg.content);
         } else if (msg.role === 'assistant') {

@@ -19,11 +19,6 @@ interface SearxngSearchResult {
   iframe_src?: string;
 }
 
-interface SearxngResponse {
-  results: SearxngSearchResult[];
-  suggestions: string[];
-  searchUrl: string;
-}
 
 export const searchSearxng = async (
   query: string,

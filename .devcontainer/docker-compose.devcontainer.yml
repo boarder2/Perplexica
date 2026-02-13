@@ -13,7 +13,7 @@ services:
     cap_add:
       - SYS_ADMIN
     command: sleep infinity
-    
+
 volumes:
   backend-dbstore:
   uploads:

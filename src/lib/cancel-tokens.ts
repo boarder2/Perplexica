@@ -13,7 +13,7 @@ export function registerCancelToken(
 
 // Remove a cancel token from the map
 export function cleanupCancelToken(messageId: string) {
-  var cancelled = false;
+  let cancelled = false;
   if (messageId in cancelTokens) {
     delete cancelTokens[messageId];
     cancelled = true;

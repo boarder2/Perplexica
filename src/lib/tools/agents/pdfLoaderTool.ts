@@ -6,7 +6,6 @@ import { SimplifiedAgentStateType } from '@/lib/state/chatAgentState';
 import { ToolMessage } from '@langchain/core/messages';
 import {
   retrievePdfDoc,
-  retrieveYoutubeTranscript,
 } from '@/lib/utils/documents';
 
 // Schema for PDF transcript tool input
@@ -45,14 +44,14 @@ export const pdfLoaderTool = tool(
             messages: [
               new ToolMessage({
                 content: 'PDF loading cancelled.',
-                tool_call_id: (config as any)?.toolCall.id,
+                tool_call_id: (config as unknown as { toolCall: { id: string } })?.toolCall.id,
               }),
             ],
           },
         });
       }
 
-      const currentState = getCurrentTaskInput() as SimplifiedAgentStateType;
+      const _currentState = getCurrentTaskInput() as SimplifiedAgentStateType;
 
       console.log(`[pdfLoaderTool] Retrieving content for PDF: "${pdfUrl}"`);
 
@@ -66,7 +65,7 @@ export const pdfLoaderTool = tool(
             messages: [
               new ToolMessage({
                 content: 'No transcript available for this video.',
-                tool_call_id: (config as any)?.toolCall.id,
+                tool_call_id: (config as unknown as { toolCall: { id: string } })?.toolCall.id,
               }),
             ],
           },
@@ -82,7 +81,7 @@ export const pdfLoaderTool = tool(
               content: JSON.stringify({
                 document: [doc],
               }),
-              tool_call_id: (config as any)?.toolCall.id,
+              tool_call_id: (config as unknown as { toolCall: { id: string } })?.toolCall.id,
             }),
           ],
         },
@@ -100,7 +99,7 @@ export const pdfLoaderTool = tool(
           messages: [
             new ToolMessage({
               content: 'Error occurred during image search: ' + errorMessage,
-              tool_call_id: (config as any)?.toolCall?.id,
+              tool_call_id: (config as unknown as { toolCall: { id: string } })?.toolCall?.id,
             }),
           ],
         },

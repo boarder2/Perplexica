@@ -1,4 +1,4 @@
-import { getKeepAlive, getLMStudioApiEndpoint } from '../config';
+import { getLMStudioApiEndpoint } from '../config';
 import axios from 'axios';
 import { ChatModel, EmbeddingModel } from '.';
 

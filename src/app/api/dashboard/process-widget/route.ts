@@ -3,7 +3,7 @@ import { getWebContent } from '@/lib/utils/documents';
 import { Document } from '@langchain/core/documents';
 import { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import { ChatOpenAI } from '@langchain/openai';
-import { HumanMessage, SystemMessage } from '@langchain/core/messages';
+import { HumanMessage } from '@langchain/core/messages';
 import { getAvailableChatModelProviders } from '@/lib/providers';
 import {
   getCustomOpenaiApiKey,
@@ -143,10 +143,7 @@ async function processWithLLM(
   // Invoke the agent with the prompt
   const response = await agent.invoke(
     {
-      messages: [
-        //new SystemMessage({ content: `You have the following tools available: ${tools.map(tool => tool.name).join(', ')} use them as necessary to complete the task.` }),
-        new HumanMessage({ content: prompt }),
-      ],
+      messages: [new HumanMessage({ content: prompt })],
     },
     {
       recursionLimit: 15, // Limit recursion depth to prevent infinite loops
@@ -176,7 +173,7 @@ export async function POST(request: NextRequest) {
     let fetchErrors: string[] = [];
     let processedPrompt = body.prompt;
     let sourcesFetched = 0;
-    let totalSources = sources ? sources.length : 0;
+    const totalSources = sources ? sources.length : 0;
 
     if (sources && sources.length > 0) {
       // Fetch content from all sources

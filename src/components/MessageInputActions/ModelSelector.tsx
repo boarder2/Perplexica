@@ -58,11 +58,13 @@ const ModelSelector = ({
           throw new Error(`Failed to fetch models: ${response.status}`);
         }
 
-        const data = await response.json();
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const data: any = await response.json();
         const providersData: ProviderModelMap = {};
 
         // Organize models by provider
         Object.entries(data.chatModelProviders).forEach(
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           ([provider, models]: [string, any]) => {
             const providerDisplayName =
               provider.charAt(0).toUpperCase() + provider.slice(1);
@@ -72,6 +74,7 @@ const ModelSelector = ({
             };
 
             Object.entries(models).forEach(
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
               ([modelKey, modelData]: [string, any]) => {
                 providersData[provider].models.push({
                   provider,

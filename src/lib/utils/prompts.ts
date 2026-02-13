@@ -7,16 +7,6 @@ import {
   formattingAndCitationsWeb,
   formattingChat,
 } from '@/lib/prompts/templates';
-import prompts from '../prompts';
-
-export interface PromptData {
-  content: string;
-  type: 'system' | 'persona';
-}
-
-export interface RetrievedPrompts {
-  personaInstructions: string;
-}
 
 /**
  * Retrieves only persona instructions from the database
@@ -59,7 +49,7 @@ export async function getPersonaInstructionsOnly(
       .from(systemPromptsTable)
       .where(inArray(systemPromptsTable.id, selectedPersonaPromptIds));
 
-    let personaPrompts = promptsFromDb.filter((p) => p.type === 'persona');
+    const personaPrompts = promptsFromDb.filter((p) => p.type === 'persona');
 
     return promptsString + personaPrompts.map((p) => p.content).join('\n');
   } catch (dbError) {
