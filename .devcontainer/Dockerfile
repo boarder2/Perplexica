@@ -34,5 +34,7 @@ RUN mkdir -p \
 WORKDIR /workspaces/Perplexica
 USER node
 
+RUN curl -fsSL https://claude.ai/install.sh | bash && echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
+
 # Install uv (Python package manager) and spec-kit (CLI tool)
 # RUN pipx install uv && pipx ensurepath && /home/node/.local/bin/uv tool install specify-cli --from git+https://github.com/github/spec-kit.git

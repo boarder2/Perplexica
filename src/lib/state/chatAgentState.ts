@@ -24,6 +24,19 @@ export interface SubagentExecution {
   summary: string;
   /** Error message if status is 'error' */
   error?: string;
+  /** Token usage accumulated by this subagent */
+  tokenUsage?: {
+    usageChat: {
+      input_tokens: number;
+      output_tokens: number;
+      total_tokens: number;
+    };
+    usageSystem: {
+      input_tokens: number;
+      output_tokens: number;
+      total_tokens: number;
+    };
+  };
 }
 
 /**

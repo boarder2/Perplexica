@@ -100,24 +100,37 @@ const handleEmitterEvents = async (
   let searchQuery: string | undefined;
   let searchUrl: string | undefined;
   let isStreamActive = true;
+  let writerClosed = false;
+
+  // Helper to safely write to the stream; aborts processing if the client has disconnected
+  const safeWrite = (data: string) => {
+    if (!isStreamActive || writerClosed || abortController.signal.aborted)
+      return;
+    writer.write(encoder.encode(data)).catch(() => {
+      if (!isStreamActive) return;
+      isStreamActive = false;
+      if (!abortController.signal.aborted) {
+        console.log('Write failed (client disconnected), aborting processing');
+        abortController.abort();
+      }
+    });
+  };
+
+  const safeClose = () => {
+    if (writerClosed) return;
+    writerClosed = true;
+    writer.close().catch(() => {});
+  };
 
   // Keep-alive ping mechanism to prevent reverse proxy timeouts
   const pingInterval = setInterval(() => {
-    if (isStreamActive) {
-      try {
-        writer.write(
-          encoder.encode(
-            JSON.stringify({
-              type: 'ping',
-              timestamp: Date.now(),
-            }) + '\n',
-          ),
-        );
-      } catch (_error) {
-        // If writing fails, the connection is likely closed
-        clearInterval(pingInterval);
-        isStreamActive = false;
-      }
+    if (isStreamActive && !abortController.signal.aborted) {
+      safeWrite(
+        JSON.stringify({
+          type: 'ping',
+          timestamp: Date.now(),
+        }) + '\n',
+      );
     } else {
       clearInterval(pingInterval);
     }
@@ -130,17 +143,16 @@ const handleEmitterEvents = async (
   });
 
   stream.on('data', (data) => {
+    if (!isStreamActive || abortController.signal.aborted) return;
     const parsedData = JSON.parse(data);
 
     if (parsedData.type === 'response') {
-      writer.write(
-        encoder.encode(
-          JSON.stringify({
-            type: 'response',
-            data: parsedData.data,
-            messageId: aiMessageId,
-          }) + '\n',
-        ),
+      safeWrite(
+        JSON.stringify({
+          type: 'response',
+          data: parsedData.data,
+          messageId: aiMessageId,
+        }) + '\n',
       );
 
       recievedMessage += parsedData.data;
@@ -156,16 +168,14 @@ const handleEmitterEvents = async (
         searchUrl = parsedData.searchUrl;
       }
 
-      writer.write(
-        encoder.encode(
-          JSON.stringify({
-            type: parsedData.type,
-            data: parsedData.data,
-            searchQuery: parsedData.searchQuery,
-            messageId: aiMessageId,
-            searchUrl: searchUrl,
-          }) + '\n',
-        ),
+      safeWrite(
+        JSON.stringify({
+          type: parsedData.type,
+          data: parsedData.data,
+          searchQuery: parsedData.searchQuery,
+          messageId: aiMessageId,
+          searchUrl: searchUrl,
+        }) + '\n',
       );
 
       sources = parsedData.data;
@@ -175,14 +185,12 @@ const handleEmitterEvents = async (
       parsedData.type === 'tool_call_error'
     ) {
       // Forward new granular tool lifecycle events
-      writer.write(
-        encoder.encode(
-          JSON.stringify({
-            type: parsedData.type,
-            data: parsedData.data,
-            messageId: aiMessageId,
-          }) + '\n',
-        ),
+      safeWrite(
+        JSON.stringify({
+          type: parsedData.type,
+          data: parsedData.data,
+          messageId: aiMessageId,
+        }) + '\n',
       );
       if (parsedData.type === 'tool_call_started' && parsedData.data?.content) {
         // Append initial placeholder markup to message content for persistence
@@ -210,13 +218,11 @@ const handleEmitterEvents = async (
     ) {
       // Forward subagent events to client
       // console.log('API: Forwarding subagent event:', parsedData.type);
-      writer.write(
-        encoder.encode(
-          JSON.stringify({
-            ...parsedData,
-            messageId: aiMessageId,
-          }) + '\n',
-        ),
+      safeWrite(
+        JSON.stringify({
+          ...parsedData,
+          messageId: aiMessageId,
+        }) + '\n',
       );
 
       // Update received message for persistence if needed
@@ -309,14 +315,12 @@ const handleEmitterEvents = async (
       }
     } else if (parsedData.type === 'todo_update') {
       // Forward todo_update event to client (transient UI, not persisted in message)
-      writer.write(
-        encoder.encode(
-          JSON.stringify({
-            type: 'todo_update',
-            data: parsedData.data,
-            messageId: aiMessageId,
-          }) + '\n',
-        ),
+      safeWrite(
+        JSON.stringify({
+          type: 'todo_update',
+          data: parsedData.data,
+          messageId: aiMessageId,
+        }) + '\n',
       );
     }
   });
@@ -326,21 +330,21 @@ const handleEmitterEvents = async (
   };
 
   stream.on('progress', (data) => {
+    if (!isStreamActive || abortController.signal.aborted) return;
     const parsedData = JSON.parse(data);
     if (parsedData.type === 'progress') {
-      writer.write(
-        encoder.encode(
-          JSON.stringify({
-            type: 'progress',
-            data: parsedData.data,
-            messageId: aiMessageId,
-          }) + '\n',
-        ),
+      safeWrite(
+        JSON.stringify({
+          type: 'progress',
+          data: parsedData.data,
+          messageId: aiMessageId,
+        }) + '\n',
       );
     }
   });
 
   stream.on('stats', (data) => {
+    if (!isStreamActive || abortController.signal.aborted) return;
     const parsedData = JSON.parse(data);
     if (parsedData.type === 'modelStats') {
       modelStats = {
@@ -349,24 +353,17 @@ const handleEmitterEvents = async (
         usedPersonalization,
       };
       // Forward stats to client for live updates
-      try {
-        writer.write(
-          encoder.encode(
-            JSON.stringify({
-              type: 'stats',
-              data: modelStats,
-              messageId: aiMessageId,
-            }) + '\n',
-          ),
-        );
-      } catch (_e) {
-        // Ignore write errors if stream closed
-      }
+      safeWrite(
+        JSON.stringify({
+          type: 'stats',
+          data: modelStats,
+          messageId: aiMessageId,
+        }) + '\n',
+      );
     }
   });
 
   stream.on('end', () => {
-    isStreamActive = false;
     clearInterval(pingInterval);
 
     const endTime = Date.now();
@@ -379,20 +376,19 @@ const handleEmitterEvents = async (
       usedPersonalization,
     };
 
-    writer.write(
-      encoder.encode(
-        JSON.stringify({
-          type: 'messageEnd',
-          messageId: aiMessageId,
-          modelStats: modelStats,
-          searchQuery: searchQuery,
-          searchUrl: searchUrl,
-          usedLocation,
-          usedPersonalization,
-        }) + '\n',
-      ),
+    safeWrite(
+      JSON.stringify({
+        type: 'messageEnd',
+        messageId: aiMessageId,
+        modelStats: modelStats,
+        searchQuery: searchQuery,
+        searchUrl: searchUrl,
+        usedLocation,
+        usedPersonalization,
+      }) + '\n',
     );
-    writer.close();
+    isStreamActive = false;
+    safeClose();
 
     // Clean up the abort controller reference
     cleanupCancelToken(userMessageId);
@@ -416,19 +412,17 @@ const handleEmitterEvents = async (
       .execute();
   });
   stream.on('error', (data) => {
-    isStreamActive = false;
     clearInterval(pingInterval);
 
     const parsedData = JSON.parse(data);
-    writer.write(
-      encoder.encode(
-        JSON.stringify({
-          type: 'error',
-          data: parsedData.data,
-        }),
-      ),
+    safeWrite(
+      JSON.stringify({
+        type: 'error',
+        data: parsedData.data,
+      }),
     );
-    writer.close();
+    isStreamActive = false;
+    safeClose();
   });
 };
 
@@ -645,17 +639,32 @@ export const POST = async (req: Request) => {
     registerRetrieval(message.messageId, retrievalController);
     clearSoftStop(message.messageId);
 
+    // Detect client disconnection via the request's built-in abort signal
+    req.signal.addEventListener('abort', () => {
+      if (!abortController.signal.aborted) {
+        console.log('Client disconnected, aborting all processing');
+        retrievalController.abort();
+        abortController.abort();
+      }
+    });
+
     abortController.signal.addEventListener('abort', () => {
       console.log('Stream aborted, sending cancel event');
-      writer.write(
-        encoder.encode(
-          JSON.stringify({
-            type: 'error',
-            data: 'Request cancelled by user',
-          }),
-        ),
-      );
-      writer.close();
+      // Also abort retrieval to stop LangGraph agent processing
+      if (!retrievalController.signal.aborted) {
+        retrievalController.abort();
+      }
+      writer
+        .write(
+          encoder.encode(
+            JSON.stringify({
+              type: 'error',
+              data: 'Request cancelled by user',
+            }),
+          ),
+        )
+        .catch(() => {});
+      writer.close().catch(() => {});
       cleanupCancelToken(message.messageId);
       cleanupRun(message.messageId);
     });

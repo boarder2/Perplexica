@@ -64,7 +64,9 @@ export const urlSummarizationTool = tool(
             messages: [
               new ToolMessage({
                 content: 'No search results found.',
-                tool_call_id: (config as unknown as { toolCall: { id: string } })?.toolCall.id,
+                tool_call_id: (
+                  config as unknown as { toolCall: { id: string } }
+                )?.toolCall.id,
               }),
             ],
           },
@@ -76,10 +78,15 @@ export const urlSummarizationTool = tool(
         throw new Error('System LLM not available in config');
       }
       const llm = config.configurable.systemLlm;
-      const retrievalSignal: AbortSignal | undefined = (config as unknown as Record<string, Record<string, unknown>>)
-        ?.configurable?.retrievalSignal as AbortSignal | undefined;
-      const messageId: string | undefined = (config as unknown as Record<string, Record<string, unknown>>)?.configurable
-        ?.messageId as string | undefined;
+      const emitter = config.configurable?.emitter as
+        | import('events').EventEmitter
+        | undefined;
+      const retrievalSignal: AbortSignal | undefined = (
+        config as unknown as Record<string, Record<string, unknown>>
+      )?.configurable?.retrievalSignal as AbortSignal | undefined;
+      const messageId: string | undefined = (
+        config as unknown as Record<string, Record<string, unknown>>
+      )?.configurable?.messageId as string | undefined;
       const documents: Document[] = [];
 
       // Process each URL
@@ -157,6 +164,22 @@ Provide a comprehensive summary of the above web page content, focusing on infor
               ...getLangfuseCallbacks(),
             });
 
+            // Emit token usage from this LLM call so parent agent can accumulate it
+            if (emitter && result.usage_metadata) {
+              const usage = result.usage_metadata;
+              emitter.emit(
+                'tool_llm_usage',
+                JSON.stringify({
+                  target: 'system',
+                  input_tokens: usage.input_tokens || 0,
+                  output_tokens: usage.output_tokens || 0,
+                  total_tokens:
+                    usage.total_tokens ||
+                    (usage.input_tokens || 0) + (usage.output_tokens || 0),
+                }),
+              );
+            }
+
             finalContent = removeThinkingBlocks(result.content as string);
             processingType = 'url-content-extraction';
           }
@@ -192,7 +215,10 @@ Provide a comprehensive summary of the above web page content, focusing on infor
             `URLSummarizationTool: Error processing URL ${url}:`,
             error,
           );
-          if (error instanceof Error && (error.name === 'AbortError' || error.name === 'CanceledError')) {
+          if (
+            error instanceof Error &&
+            (error.name === 'AbortError' || error.name === 'CanceledError')
+          ) {
             break;
           }
           continue;
@@ -211,7 +237,8 @@ Provide a comprehensive summary of the above web page content, focusing on infor
               content: JSON.stringify({
                 document: documents,
               }),
-              tool_call_id: (config as unknown as { toolCall: { id: string } })?.toolCall.id,
+              tool_call_id: (config as unknown as { toolCall: { id: string } })
+                ?.toolCall.id,
             }),
           ],
         },
@@ -229,7 +256,8 @@ Provide a comprehensive summary of the above web page content, focusing on infor
           messages: [
             new ToolMessage({
               content: 'Error occurred during URL processing: ' + errorMessage,
-              tool_call_id: (config as unknown as { toolCall: { id: string } })?.toolCall.id,
+              tool_call_id: (config as unknown as { toolCall: { id: string } })
+                ?.toolCall.id,
             }),
           ],
         },

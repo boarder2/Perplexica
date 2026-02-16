@@ -195,6 +195,8 @@ User Query → SimplifiedAgent (with all tools including deep_research)
   - Wraps SimplifiedAgent with subagent-specific configuration
   - Enforces tool restrictions via allowedTools whitelist
   - Provides isolated event streaming with subagent context
+  - Passes empty `personaInstructions` to SimplifiedAgent — subagent behavior is controlled entirely by `customSystemPrompt` from the subagent definition, NOT by persona/formatting instructions
+  - Forwards `userLocation`/`userProfile` from the parent agent for location-aware research
 
 - **Definitions** ([src/lib/search/subagents/definitions.ts](src/lib/search/subagents/definitions.ts))
   - Subagent configurations (system prompt, allowed tools, model selection)

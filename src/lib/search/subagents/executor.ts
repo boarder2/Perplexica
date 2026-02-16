@@ -27,6 +27,8 @@ export class SubagentExecutor {
   private signal: AbortSignal;
   private messageId: string;
   private retrievalSignal?: AbortSignal;
+  private userLocation?: string;
+  private userProfile?: string;
 
   constructor(
     definition: SubagentDefinition,
@@ -37,6 +39,8 @@ export class SubagentExecutor {
     signal: AbortSignal,
     messageId: string,
     retrievalSignal?: AbortSignal,
+    userLocation?: string,
+    userProfile?: string,
   ) {
     this.definition = definition;
     this.chatLlm = chatLlm;
@@ -46,6 +50,8 @@ export class SubagentExecutor {
     this.signal = signal;
     this.messageId = messageId;
     this.retrievalSignal = retrievalSignal;
+    this.userLocation = userLocation;
+    this.userProfile = userProfile;
   }
 
   /**
@@ -72,11 +78,27 @@ export class SubagentExecutor {
       task,
     });
 
+    // Track token usage across try/catch boundary
+    let capturedTokenUsage:
+      | {
+          usageChat: {
+            input_tokens: number;
+            output_tokens: number;
+            total_tokens: number;
+          };
+          usageSystem: {
+            input_tokens: number;
+            output_tokens: number;
+            total_tokens: number;
+          };
+        }
+      | undefined;
+
     try {
       // Create isolated emitter to capture subagent events
       const isolatedEmitter = this.createIsolatedEmitter(executionId);
 
-      // Collect documents and response text from isolated emitter
+      // Collect documents, response text, and token usage from isolated emitter
       const collectedData = {
         documents: [] as Document[],
         responseText: '',
@@ -99,21 +121,48 @@ export class SubagentExecutor {
         }
       });
 
+      // Capture token usage stats emitted by the subagent
+      isolatedEmitter.on('stats', (data: string) => {
+        try {
+          const parsed = JSON.parse(data);
+          if (parsed.type === 'modelStats' && parsed.data) {
+            capturedTokenUsage = {
+              usageChat: parsed.data.usageChat || {
+                input_tokens: 0,
+                output_tokens: 0,
+                total_tokens: 0,
+              },
+              usageSystem: parsed.data.usageSystem || {
+                input_tokens: 0,
+                output_tokens: 0,
+                total_tokens: 0,
+              },
+            };
+          }
+        } catch (error) {
+          console.error('SubagentExecutor: Error parsing stats event:', error);
+        }
+      });
+
       // Select the appropriate model based on subagent configuration
       const selectedLlm = this.definition.useSystemModel
         ? this.systemLlm
         : this.chatLlm;
 
-      // Create SimplifiedAgent with subagent system prompt
+      // Create SimplifiedAgent with subagent configuration
+      // Note: personaInstructions is empty — the subagent's behavior is controlled
+      // entirely by the customSystemPrompt passed to searchAndAnswer, not persona instructions.
       const subagent = new SimplifiedAgent(
         selectedLlm, // Use configured model
         this.systemLlm, // Always use system model for internal operations
         this.embeddings,
         isolatedEmitter,
-        this.definition.systemPrompt, // Custom system prompt
+        '', // No persona instructions for subagents — definition.systemPrompt is used as customSystemPrompt
         this.signal,
         `${this.messageId}_${executionId}`,
         this.retrievalSignal || this.signal, // Use retrievalSignal if available, fallback to signal
+        this.userLocation,
+        this.userProfile,
       );
 
       // Limit context to avoid token bloat
@@ -147,6 +196,7 @@ export class SubagentExecutor {
         endTime,
         documents: collectedData.documents,
         summary: collectedData.responseText.trim(),
+        tokenUsage: capturedTokenUsage,
       };
 
       console.log(
@@ -172,7 +222,9 @@ export class SubagentExecutor {
         endTime,
         documents: [],
         summary: '',
-        error: (error instanceof Error ? error.message : null) || 'Unknown error',
+        error:
+          (error instanceof Error ? error.message : null) || 'Unknown error',
+        tokenUsage: capturedTokenUsage,
       };
 
       this.emitSubagentEvent('subagent_error', execution);
@@ -230,7 +282,10 @@ export class SubagentExecutor {
   /**
    * Emit a subagent-specific event to the parent emitter
    */
-  private emitSubagentEvent(type: string, data: Record<string, unknown> | SubagentExecution): void {
+  private emitSubagentEvent(
+    type: string,
+    data: Record<string, unknown> | SubagentExecution,
+  ): void {
     this.parentEmitter.emit(
       'data',
       JSON.stringify({

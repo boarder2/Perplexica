@@ -47,6 +47,8 @@ export const deepResearchTool = tool(
       const retrievalSignal = config?.configurable?.retrievalSignal;
       const messageId = config?.configurable?.messageId || 'unknown';
       const fileIds = config?.configurable?.fileIds || [];
+      const userLocation = config?.configurable?.userLocation;
+      const userProfile = config?.configurable?.userProfile;
 
       // Validate required config
       if (!chatLlm || !systemLlm || !embeddings || !emitter) {
@@ -73,6 +75,8 @@ export const deepResearchTool = tool(
         signal!,
         messageId,
         retrievalSignal, // Pass retrievalSignal for cancellation support
+        userLocation,
+        userProfile,
       );
 
       // Execute subagent with conversation history
@@ -87,6 +91,43 @@ export const deepResearchTool = tool(
         `DeepResearchTool: Subagent completed with status: ${execution.status}`,
       );
 
+      // Emit subagent token usage to parent so it can be accumulated.
+      // The subagent tracks chat vs system model usage separately;
+      // forward each to the correct parent accumulator.
+      if (execution.tokenUsage) {
+        const { usageChat, usageSystem } = execution.tokenUsage;
+        if (
+          usageChat.input_tokens > 0 ||
+          usageChat.output_tokens > 0 ||
+          usageChat.total_tokens > 0
+        ) {
+          emitter.emit(
+            'tool_llm_usage',
+            JSON.stringify({
+              target: 'chat',
+              input_tokens: usageChat.input_tokens,
+              output_tokens: usageChat.output_tokens,
+              total_tokens: usageChat.total_tokens,
+            }),
+          );
+        }
+        if (
+          usageSystem.input_tokens > 0 ||
+          usageSystem.output_tokens > 0 ||
+          usageSystem.total_tokens > 0
+        ) {
+          emitter.emit(
+            'tool_llm_usage',
+            JSON.stringify({
+              target: 'system',
+              input_tokens: usageSystem.input_tokens,
+              output_tokens: usageSystem.output_tokens,
+              total_tokens: usageSystem.total_tokens,
+            }),
+          );
+        }
+      }
+
       // Return results via Command pattern
       // Documents flow back into main agent's relevantDocuments state
       // Summary goes into a ToolMessage so the agent can reason about findings
@@ -99,7 +140,8 @@ export const deepResearchTool = tool(
                 execution.status === 'success'
                   ? `Deep research completed. Findings:\n\n${execution.summary}`
                   : `Deep research encountered an error: ${execution.error || 'Unknown error'}`,
-              tool_call_id: (config as unknown as { toolCall: { id: string } })?.toolCall.id,
+              tool_call_id: (config as unknown as { toolCall: { id: string } })
+                ?.toolCall.id,
             }),
           ],
         },
@@ -115,7 +157,8 @@ export const deepResearchTool = tool(
               content:
                 'Error during deep research: ' +
                 (error instanceof Error ? error.message : 'Unknown error'),
-              tool_call_id: (config as unknown as { toolCall: { id: string } })?.toolCall.id,
+              tool_call_id: (config as unknown as { toolCall: { id: string } })
+                ?.toolCall.id,
             }),
           ],
         },
@@ -125,7 +168,7 @@ export const deepResearchTool = tool(
   {
     name: 'deep_research',
     description:
-      'Spawns a focused research subagent to perform comprehensive, multi-source investigation on a specific aspect of the query. Use when a sub-problem requires deeper investigation than a single web search can provide. The subagent independently performs multiple searches, retrieves sources, and synthesizes findings.',
+      'Spawns a focused research subagent to perform comprehensive, multi-source investigation on a specific aspect of the query. Use when a sub-problem requires deeper investigation than a single web search can provide. The subagent independently performs multiple searches, retrieves sources, and synthesizes findings. Give focused tasks to this tool, not broad ones. The input should specify exactly what to research and what information to gather. Include all necessary context in the task description since the subagent has limited access to the main conversation history.',
     schema: DeepResearchToolSchema,
   },
 );

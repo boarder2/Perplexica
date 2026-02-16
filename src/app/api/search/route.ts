@@ -177,6 +177,14 @@ export const POST = async (req: Request) => {
     const abortController = new AbortController();
     const { signal } = abortController;
 
+    // Detect client disconnection via the request's built-in abort signal
+    req.signal.addEventListener('abort', () => {
+      if (!abortController.signal.aborted) {
+        console.log('Search API: Client disconnected, aborting processing');
+        abortController.abort();
+      }
+    });
+
     // System instructions are deprecated; only persona prompts are used.
     const personaInstructions = await getPersonaInstructionsOnly(
       body.selectedSystemPromptIds || [],
@@ -208,6 +216,7 @@ export const POST = async (req: Request) => {
         ) => {
           let message = '';
           let sources: Record<string, unknown>[] = [];
+          let modelStats: Record<string, unknown> | undefined;
 
           emitter.on('data', (data: string) => {
             try {
@@ -227,8 +236,21 @@ export const POST = async (req: Request) => {
             }
           });
 
+          emitter.on('stats', (data: string) => {
+            try {
+              const parsedData = JSON.parse(data);
+              if (parsedData.type === 'modelStats') {
+                modelStats = parsedData.data;
+              }
+            } catch (_error) {
+              // Ignore stats parse errors
+            }
+          });
+
           emitter.on('end', () => {
-            resolve(Response.json({ message, sources }, { status: 200 }));
+            resolve(
+              Response.json({ message, sources, modelStats }, { status: 200 }),
+            );
           });
 
           emitter.on('error', (error: unknown) => {
@@ -322,6 +344,26 @@ export const POST = async (req: Request) => {
           }
         });
 
+        emitter.on('stats', (data: string) => {
+          if (signal.aborted) return;
+
+          try {
+            const parsedData = JSON.parse(data);
+            if (parsedData.type === 'modelStats') {
+              controller.enqueue(
+                encoder.encode(
+                  JSON.stringify({
+                    type: 'stats',
+                    data: parsedData.data,
+                  }) + '\n',
+                ),
+              );
+            }
+          } catch (_error) {
+            // Ignore stats parse errors
+          }
+        });
+
         emitter.on('end', () => {
           if (signal.aborted) return;
 
@@ -360,7 +402,9 @@ export const POST = async (req: Request) => {
       },
     });
   } catch (err: unknown) {
-    console.error(`Error in getting search results: ${err instanceof Error ? err.message : String(err)}`);
+    console.error(
+      `Error in getting search results: ${err instanceof Error ? err.message : String(err)}`,
+    );
     return Response.json(
       { message: 'An error has occurred.' },
       { status: 500 },

@@ -279,6 +279,9 @@ export class SimplifiedAgent {
     customTools?: typeof allAgentTools,
     customSystemPrompt?: string,
   ): Promise<void> {
+    // Declared outside try so the catch block can clean it up
+    let toolLlmUsageHandler: ((data: string) => void) | null = null;
+
     try {
       console.log(`SimplifiedAgent: Starting search for query: "${query}"`);
       console.log(`SimplifiedAgent: Focus mode: ${focusMode}`);
@@ -522,18 +525,74 @@ export class SimplifiedAgent {
         ],
       });
 
-      let finalResult: { messages?: BaseMessage[]; relevantDocuments?: Document[] } | null = null;
+      let finalResult: {
+        messages?: BaseMessage[];
+        relevantDocuments?: Document[];
+      } | null = null;
       const collectedDocuments: Document[] = [];
       let currentResponseBuffer = '';
       // Separate usage trackers for chat (final answer) and system (tools/internal chains)
       const usageChat = { input_tokens: 0, output_tokens: 0, total_tokens: 0 };
-      const usageSystem = { input_tokens: 0, output_tokens: 0, total_tokens: 0 };
+      const usageSystem = {
+        input_tokens: 0,
+        output_tokens: 0,
+        total_tokens: 0,
+      };
 
       let initialMessageSent = false;
+
+      // Listen for token usage emitted by tools (url_summarization, deep_research)
+      // that make their own LLM calls outside the agent's streamEvents chain.
+      toolLlmUsageHandler = (data: string) => {
+        try {
+          const usage = JSON.parse(data);
+          // Route to the correct accumulator based on which model was used
+          const accumulator = usage.target === 'chat' ? usageChat : usageSystem;
+          accumulator.input_tokens += usage.input_tokens || 0;
+          accumulator.output_tokens += usage.output_tokens || 0;
+          accumulator.total_tokens += usage.total_tokens || 0;
+          // Emit updated stats to client
+          this.emitter.emit(
+            'stats',
+            JSON.stringify({
+              type: 'modelStats',
+              data: {
+                modelName: getModelName(this.chatLlm),
+                modelNameChat: getModelName(this.chatLlm),
+                modelNameSystem: getModelName(this.systemLlm),
+                usage: {
+                  input_tokens:
+                    usageChat.input_tokens + usageSystem.input_tokens,
+                  output_tokens:
+                    usageChat.output_tokens + usageSystem.output_tokens,
+                  total_tokens:
+                    usageChat.total_tokens + usageSystem.total_tokens,
+                },
+                usageChat,
+                usageSystem,
+              },
+            }),
+          );
+        } catch (error) {
+          console.error(
+            'SimplifiedAgent: Error processing tool_llm_usage:',
+            error,
+          );
+        }
+      };
+      this.emitter.on('tool_llm_usage', toolLlmUsageHandler);
 
       try {
         // Process the event stream
         for await (const event of eventStream) {
+          // Check if the operation has been aborted (e.g., client disconnected)
+          if (this.signal.aborted) {
+            console.log(
+              'SimplifiedAgent: Abort signal received, stopping event processing',
+            );
+            break;
+          }
+
           if (!initialMessageSent) {
             initialMessageSent = true;
             // If Firefox AI was detected, emit synthetic lifecycle events so UI can show a completed pseudo-tool
@@ -636,23 +695,16 @@ export class SimplifiedAgent {
           // Handle streaming tool calls (for thought messages)
           if (event.event === 'on_chat_model_end' && event.data.output) {
             const output = event.data.output;
-            const _nameLower = (event.name || '').toLowerCase();
             console.log(`SimplifiedAgent: on_chat_model_end`, event);
-            const isToolContext =
-              output.tool_calls && output.tool_calls.length > 0;
 
-            // Collect token usage from chat model end events
+            // All on_chat_model_end events in the agent's streamEvents come from
+            // createReactAgent({ llm: this.chatLlm }), so they are always chat model tokens —
+            // whether the LLM is generating tool calls or the final answer.
             if (output.usage_metadata) {
               const normalized = normalizeUsageMetadata(output.usage_metadata);
-              if (isToolContext) {
-                usageSystem.input_tokens += normalized.input_tokens;
-                usageSystem.output_tokens += normalized.output_tokens;
-                usageSystem.total_tokens += normalized.total_tokens;
-              } else {
-                usageChat.input_tokens += normalized.input_tokens;
-                usageChat.output_tokens += normalized.output_tokens;
-                usageChat.total_tokens += normalized.total_tokens;
-              }
+              usageChat.input_tokens += normalized.input_tokens;
+              usageChat.output_tokens += normalized.output_tokens;
+              usageChat.total_tokens += normalized.total_tokens;
               console.log(
                 'SimplifiedAgent: Collected usage from usage_metadata:',
                 normalized,
@@ -684,15 +736,9 @@ export class SimplifiedAgent {
               const normalized = normalizeUsageMetadata(
                 output.response_metadata.usage,
               );
-              if (isToolContext) {
-                usageSystem.input_tokens += normalized.input_tokens;
-                usageSystem.output_tokens += normalized.output_tokens;
-                usageSystem.total_tokens += normalized.total_tokens;
-              } else {
-                usageChat.input_tokens += normalized.input_tokens;
-                usageChat.output_tokens += normalized.output_tokens;
-                usageChat.total_tokens += normalized.total_tokens;
-              }
+              usageChat.input_tokens += normalized.input_tokens;
+              usageChat.output_tokens += normalized.output_tokens;
+              usageChat.total_tokens += normalized.total_tokens;
               console.log(
                 'SimplifiedAgent: Collected usage from response_metadata:',
                 normalized,
@@ -725,15 +771,16 @@ export class SimplifiedAgent {
           if (event.event === 'on_llm_end' && event.data.output) {
             const output = event.data.output;
 
-            // Collect token usage from LLM end events
+            // All on_llm_end events in the agent's streamEvents come from the chat model
+            // (the only LLM in the agent graph). System model calls (e.g. url_summarization)
+            // are direct llm.invoke() calls outside the graph and report via tool_llm_usage.
             if (output.llmOutput?.tokenUsage) {
               const normalized = normalizeUsageMetadata(
                 output.llmOutput.tokenUsage,
               );
-              // on_llm_end often corresponds to tool/internal chains; attribute to system usage
-              usageSystem.input_tokens += normalized.input_tokens;
-              usageSystem.output_tokens += normalized.output_tokens;
-              usageSystem.total_tokens += normalized.total_tokens;
+              usageChat.input_tokens += normalized.input_tokens;
+              usageChat.output_tokens += normalized.output_tokens;
+              usageChat.total_tokens += normalized.total_tokens;
               console.log(
                 'SimplifiedAgent: Collected usage from llmOutput:',
                 normalized,
@@ -796,25 +843,36 @@ ${url ? `<url>${url}</url>` : ''}
             })
             .join('\n\n');
 
-          const prompt = await ChatPromptTemplate.fromMessages([
-            ['system', webSearchResponsePrompt],
-            ['user', query],
-          ]).partial({
-            //recursionLimitReached: '',
-            formattingAndCitations: this.personaInstructions
-              ? this.personaInstructions
-              : formattingAndCitationsWeb.content,
-            personalizationDirectives: buildPersonalizationSection({
-              location: this.userLocation,
-              profile: this.userProfile,
-            }),
-            //conversationHistory: '', //TODO: Pass recent history
-            context: docsString || 'No context documents available.',
-            date: formatDateForLLM(new Date()),
-          });
+          // Build the respond-now prompt based on whether a custom system prompt is active.
+          // When customSystemPrompt is provided (e.g. deep research subagent), use it
+          // instead of the default webSearchResponsePrompt to stay consistent with
+          // the agent's original role.
+          let respondNowPrompt: ChatPromptTemplate;
+          if (customSystemPrompt) {
+            const synthesisSystemPrompt = `${customSystemPrompt}\n\n## Early Synthesis\nYou were interrupted before completing your full research. Synthesize a response from the documents gathered so far.\n\n<context>\n${docsString || 'No context documents available.'}\n</context>\n\nCurrent date: ${formatDateForLLM(new Date())}`;
+            respondNowPrompt = ChatPromptTemplate.fromMessages([
+              ['system', synthesisSystemPrompt],
+              ['user', query],
+            ]);
+          } else {
+            respondNowPrompt = await ChatPromptTemplate.fromMessages([
+              ['system', webSearchResponsePrompt],
+              ['user', query],
+            ]).partial({
+              formattingAndCitations: this.personaInstructions
+                ? this.personaInstructions
+                : formattingAndCitationsWeb.content,
+              personalizationDirectives: buildPersonalizationSection({
+                location: this.userLocation,
+                profile: this.userProfile,
+              }),
+              context: docsString || 'No context documents available.',
+              date: formatDateForLLM(new Date()),
+            });
+          }
 
           const chain = RunnableSequence.from([
-            prompt,
+            respondNowPrompt,
             this.chatLlm,
           ]).withConfig({
             runName: 'SimplifiedRespondNowSynthesis',
@@ -913,6 +971,9 @@ ${url ? `<url>${url}</url>` : ''}
         );
       }
 
+      // Clean up tool_llm_usage listener before final emission
+      this.emitter.removeListener('tool_llm_usage', toolLlmUsageHandler);
+
       // Emit model stats and end signal after streaming is complete
       const modelNameChat = getModelName(this.chatLlm);
       const modelNameSystem = getModelName(this.systemLlm);
@@ -944,6 +1005,11 @@ ${url ? `<url>${url}</url>` : ''}
 
       this.emitter.emit('end');
     } catch (error: unknown) {
+      // Clean up tool_llm_usage listener on error
+      if (toolLlmUsageHandler) {
+        this.emitter.removeListener('tool_llm_usage', toolLlmUsageHandler);
+      }
+
       console.error('SimplifiedAgent: Error during search and answer:', error);
 
       // Handle specific error types
