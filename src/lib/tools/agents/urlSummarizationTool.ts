@@ -1,13 +1,13 @@
 import { tool } from '@langchain/core/tools';
 import { z } from 'zod';
 import { RunnableConfig } from '@langchain/core/runnables';
-import { Document } from 'langchain/document';
+import { Document } from '@langchain/core/documents';
 import { getWebContent } from '@/lib/utils/documents';
 import { removeThinkingBlocks } from '@/lib/utils/contentUtils';
 import { Command, getCurrentTaskInput } from '@langchain/langgraph';
 import { SimplifiedAgentStateType } from '@/lib/state/chatAgentState';
 import { ToolMessage } from '@langchain/core/messages';
-import { getLangfuseCallbacks } from '@/lib/tracing/langfuse';
+// import { getLangfuseCallbacks } from '@/lib/tracing/langfuse';
 import { isSoftStop } from '@/lib/utils/runControl';
 
 // Schema for URL summarization tool input
@@ -161,7 +161,7 @@ Provide a comprehensive summary of the above web page content, focusing on infor
 
             const result = await llm.invoke(summarizationPrompt, {
               signal: retrievalSignal || config?.signal,
-              ...getLangfuseCallbacks(),
+              // ...getLangfuseCallbacks(),
             });
 
             // Emit token usage from this LLM call so parent agent can accumulate it

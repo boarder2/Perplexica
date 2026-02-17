@@ -8,7 +8,7 @@
 import { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import { BaseMessage } from '@langchain/core/messages';
 import { EventEmitter } from 'events';
-import { Document } from 'langchain/document';
+import { Document } from '@langchain/core/documents';
 import { SubagentExecution } from '@/lib/state/chatAgentState';
 import { SimplifiedAgent } from '@/lib/search/simplifiedAgent';
 import { SubagentDefinition } from './definitions';

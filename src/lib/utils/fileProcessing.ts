@@ -1,4 +1,4 @@
-import { Document } from 'langchain/document';
+import { Document } from '@langchain/core/documents';
 import fs from 'node:fs';
 import path from 'node:path';
 import computeSimilarity from './computeSimilarity';

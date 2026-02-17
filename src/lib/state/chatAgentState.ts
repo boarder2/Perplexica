@@ -1,6 +1,6 @@
 import { BaseMessage } from '@langchain/core/messages';
 import { Annotation } from '@langchain/langgraph';
-import { Document } from 'langchain/document';
+import { Document } from '@langchain/core/documents';
 
 /**
  * Represents a single subagent execution within a request

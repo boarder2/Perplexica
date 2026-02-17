@@ -11,13 +11,13 @@ import {
 import { PDFLoader } from '@langchain/community/document_loaders/fs/pdf';
 import { DocxLoader } from '@langchain/community/document_loaders/fs/docx';
 import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters';
-import { Document } from 'langchain/document';
+import { Document } from '@langchain/core/documents';
 import { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import { ChatOpenAI } from '@langchain/openai';
 import { ChatOllama } from '@langchain/ollama';
 import { z } from 'zod';
 import { withStructuredOutput } from '@/lib/utils/structuredOutput';
-import { getLangfuseCallbacks } from '@/lib/tracing/langfuse';
+// import { getLangfuseCallbacks } from '@/lib/tracing/langfuse';
 
 interface FileRes {
   fileName: string;
@@ -73,7 +73,7 @@ Generate topics that describe what this document is about, its domain, and key s
     });
 
     const result = await structuredLlm.invoke(prompt, {
-      ...getLangfuseCallbacks(),
+      // ...getLangfuseCallbacks(),
     });
     console.log('Generated topics:', result.topics);
     // Filename is included for context

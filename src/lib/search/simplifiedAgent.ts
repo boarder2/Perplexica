@@ -10,10 +10,10 @@ import {
   fileSearchTools,
   webSearchTools,
 } from '@/lib/tools/agents';
-import {
-  getLangfuseCallbacks,
-  getLangfuseHandler,
-} from '@/lib/tracing/langfuse';
+// import {
+//   getLangfuseCallbacks,
+//   getLangfuseHandler,
+// } from '@/lib/tracing/langfuse';
 import { encodeHtmlAttribute } from '@/lib/utils/html';
 import { isSoftStop } from '@/lib/utils/runControl';
 import { BaseChatModel } from '@langchain/core/language_models/chat_models';
@@ -22,7 +22,7 @@ import { ChatPromptTemplate } from '@langchain/core/prompts';
 import { RunnableConfig, RunnableSequence } from '@langchain/core/runnables';
 import { createReactAgent } from '@langchain/langgraph/prebuilt';
 import { EventEmitter } from 'events';
-import { Document } from 'langchain/document';
+import { Document } from '@langchain/core/documents';
 import { webSearchResponsePrompt } from '../prompts/webSearch';
 import { formatDateForLLM } from '../utils';
 import { removeThinkingBlocksFromMessages } from '../utils/contentUtils';
@@ -405,7 +405,7 @@ export class SimplifiedAgent {
         },
         recursionLimit: 150, // Increased to handle complex multi-task research with todo_list
         signal: this.retrievalSignal,
-        ...getLangfuseCallbacks(),
+        // ...getLangfuseCallbacks(),
       };
 
       // Use streamEvents to capture both tool calls and token-level streaming
@@ -579,7 +579,7 @@ export class SimplifiedAgent {
               }
             },
           },
-          getLangfuseHandler() || {},
+          // getLangfuseHandler() || {},
         ],
       });
 
@@ -853,13 +853,13 @@ ${url ? `<url>${url}</url>` : ''}
             this.chatLlm,
           ]).withConfig({
             runName: 'SimplifiedRespondNowSynthesis',
-            ...getLangfuseCallbacks(),
+            // ...getLangfuseCallbacks(),
             signal: this.signal,
           });
 
           const eventStream2 = chain.streamEvents(
             { query },
-            { version: 'v2', ...getLangfuseCallbacks() },
+            { version: 'v2', /* ...getLangfuseCallbacks() */ },
           );
 
           this.emitResponse(

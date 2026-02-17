@@ -1,7 +1,7 @@
 import { tool } from '@langchain/core/tools';
 import { z } from 'zod';
 import { RunnableConfig } from '@langchain/core/runnables';
-import { Document } from 'langchain/document';
+import { Document } from '@langchain/core/documents';
 import { Command, getCurrentTaskInput } from '@langchain/langgraph';
 import { ToolMessage } from '@langchain/core/messages';
 import { SimplifiedAgentStateType } from '@/lib/state/chatAgentState';

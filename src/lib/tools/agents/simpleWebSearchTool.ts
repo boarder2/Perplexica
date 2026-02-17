@@ -7,7 +7,7 @@ import { ToolMessage } from '@langchain/core/messages';
 import { RunnableConfig } from '@langchain/core/runnables';
 import { tool } from '@langchain/core/tools';
 import { Command, getCurrentTaskInput } from '@langchain/langgraph';
-import { Document } from 'langchain/document';
+import { Document } from '@langchain/core/documents';
 import { z } from 'zod';
 
 // Schema for simple web search tool input
