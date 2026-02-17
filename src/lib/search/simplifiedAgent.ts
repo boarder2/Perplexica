@@ -68,6 +68,37 @@ function normalizeUsageMetadata(usageData: Record<string, number>): {
 }
 
 /**
+ * Extract text content from LLM message content (handles both string and array formats)
+ * OpenAI returns string, Anthropic returns array of content blocks
+ */
+function extractTextContent(
+  content: string | Array<{ type?: string; text?: string }> | null | undefined,
+): string {
+  if (!content) return '';
+
+  if (typeof content === 'string') {
+    return content;
+  }
+
+  if (Array.isArray(content)) {
+    let text = '';
+    for (const block of content) {
+      if (
+        typeof block === 'object' &&
+        block !== null &&
+        (block.type === 'text' || block.type === 'text_delta') &&
+        block.text
+      ) {
+        text += block.text;
+      }
+    }
+    return text;
+  }
+
+  return '';
+}
+
+/**
  * SimplifiedAgent class that provides a streamlined interface for creating and managing an AI agent
  * with customizable focus modes and tools.
  */
@@ -110,6 +141,33 @@ export class SimplifiedAgent {
 
   private emitResponse(text: string) {
     this.emitter.emit('data', JSON.stringify({ type: 'response', data: text }));
+  }
+
+  /**
+   * Emit model usage statistics to the client
+   */
+  private emitModelStats(
+    usageChat: { input_tokens: number; output_tokens: number; total_tokens: number },
+    usageSystem: { input_tokens: number; output_tokens: number; total_tokens: number },
+  ) {
+    this.emitter.emit(
+      'stats',
+      JSON.stringify({
+        type: 'modelStats',
+        data: {
+          modelName: getModelName(this.chatLlm),
+          modelNameChat: getModelName(this.chatLlm),
+          modelNameSystem: getModelName(this.systemLlm),
+          usage: {
+            input_tokens: usageChat.input_tokens + usageSystem.input_tokens,
+            output_tokens: usageChat.output_tokens + usageSystem.output_tokens,
+            total_tokens: usageChat.total_tokens + usageSystem.total_tokens,
+          },
+          usageChat,
+          usageSystem,
+        },
+      }),
+    );
   }
 
   /**
@@ -552,27 +610,7 @@ export class SimplifiedAgent {
           accumulator.output_tokens += usage.output_tokens || 0;
           accumulator.total_tokens += usage.total_tokens || 0;
           // Emit updated stats to client
-          this.emitter.emit(
-            'stats',
-            JSON.stringify({
-              type: 'modelStats',
-              data: {
-                modelName: getModelName(this.chatLlm),
-                modelNameChat: getModelName(this.chatLlm),
-                modelNameSystem: getModelName(this.systemLlm),
-                usage: {
-                  input_tokens:
-                    usageChat.input_tokens + usageSystem.input_tokens,
-                  output_tokens:
-                    usageChat.output_tokens + usageSystem.output_tokens,
-                  total_tokens:
-                    usageChat.total_tokens + usageSystem.total_tokens,
-                },
-                usageChat,
-                usageSystem,
-              },
-            }),
-          );
+          this.emitModelStats(usageChat, usageSystem);
         } catch (error) {
           console.error(
             'SimplifiedAgent: Error processing tool_llm_usage:',
@@ -710,27 +748,7 @@ export class SimplifiedAgent {
                 normalized,
               );
               // Emit live snapshot
-              this.emitter.emit(
-                'stats',
-                JSON.stringify({
-                  type: 'modelStats',
-                  data: {
-                    modelName: getModelName(this.chatLlm),
-                    modelNameChat: getModelName(this.chatLlm),
-                    modelNameSystem: getModelName(this.systemLlm),
-                    usage: {
-                      input_tokens:
-                        usageChat.input_tokens + usageSystem.input_tokens,
-                      output_tokens:
-                        usageChat.output_tokens + usageSystem.output_tokens,
-                      total_tokens:
-                        usageChat.total_tokens + usageSystem.total_tokens,
-                    },
-                    usageChat,
-                    usageSystem,
-                  },
-                }),
-              );
+              this.emitModelStats(usageChat, usageSystem);
             } else if (output.response_metadata?.usage) {
               // Fallback to response_metadata for different model providers
               const normalized = normalizeUsageMetadata(
@@ -743,27 +761,7 @@ export class SimplifiedAgent {
                 'SimplifiedAgent: Collected usage from response_metadata:',
                 normalized,
               );
-              this.emitter.emit(
-                'stats',
-                JSON.stringify({
-                  type: 'modelStats',
-                  data: {
-                    modelName: getModelName(this.chatLlm),
-                    modelNameChat: getModelName(this.chatLlm),
-                    modelNameSystem: getModelName(this.systemLlm),
-                    usage: {
-                      input_tokens:
-                        usageChat.input_tokens + usageSystem.input_tokens,
-                      output_tokens:
-                        usageChat.output_tokens + usageSystem.output_tokens,
-                      total_tokens:
-                        usageChat.total_tokens + usageSystem.total_tokens,
-                    },
-                    usageChat,
-                    usageSystem,
-                  },
-                }),
-              );
+              this.emitModelStats(usageChat, usageSystem);
             }
           }
 
@@ -785,39 +783,18 @@ export class SimplifiedAgent {
                 'SimplifiedAgent: Collected usage from llmOutput:',
                 normalized,
               );
-              this.emitter.emit(
-                'stats',
-                JSON.stringify({
-                  type: 'modelStats',
-                  data: {
-                    modelName: getModelName(this.chatLlm),
-                    modelNameChat: getModelName(this.chatLlm),
-                    modelNameSystem: getModelName(this.systemLlm),
-                    usage: {
-                      input_tokens:
-                        usageChat.input_tokens + usageSystem.input_tokens,
-                      output_tokens:
-                        usageChat.output_tokens + usageSystem.output_tokens,
-                      total_tokens:
-                        usageChat.total_tokens + usageSystem.total_tokens,
-                    },
-                    usageChat,
-                    usageSystem,
-                  },
-                }),
-              );
+              this.emitModelStats(usageChat, usageSystem);
             }
           }
 
           // Handle token-level streaming for the final response
           if (event.event === 'on_chat_model_stream' && event.data.chunk) {
             const chunk = event.data.chunk;
-            if (chunk.content && typeof chunk.content === 'string') {
-              // Add the token to our buffer
-              currentResponseBuffer += chunk.content;
+            const textContent = extractTextContent(chunk.content);
 
-              // Emit the individual token
-              this.emitResponse(chunk.content);
+            if (textContent) {
+              currentResponseBuffer += textContent;
+              this.emitResponse(textContent);
             }
           }
         }
@@ -893,9 +870,11 @@ ${url ? `<url>${url}</url>` : ''}
             if (this.signal.aborted) break;
             if (event.event === 'on_chat_model_stream' && event.data?.chunk) {
               const chunk = event.data.chunk;
-              if (chunk.content && typeof chunk.content === 'string') {
-                currentResponseBuffer += chunk.content;
-                this.emitResponse(chunk.content);
+              const textContent = extractTextContent(chunk.content);
+
+              if (textContent) {
+                currentResponseBuffer += textContent;
+                this.emitResponse(textContent);
               }
             }
             if (event.event === 'on_chat_model_end' && event.data?.output) {
@@ -954,7 +933,10 @@ ${url ? `<url>${url}</url>` : ''}
         if (finalMessage && finalMessage.content) {
           console.log('SimplifiedAgent: Emitting complete response (fallback)');
 
-          this.emitResponse(finalMessage.content as string);
+          const text = extractTextContent(finalMessage.content);
+          if (text) {
+            this.emitResponse(text);
+          }
         }
       }
 
@@ -975,33 +957,13 @@ ${url ? `<url>${url}</url>` : ''}
       this.emitter.removeListener('tool_llm_usage', toolLlmUsageHandler);
 
       // Emit model stats and end signal after streaming is complete
-      const modelNameChat = getModelName(this.chatLlm);
-      const modelNameSystem = getModelName(this.systemLlm);
       console.log(
         'SimplifiedAgent: Usage collected — chat:',
         usageChat,
         'system:',
         usageSystem,
       );
-      this.emitter.emit(
-        'stats',
-        JSON.stringify({
-          type: 'modelStats',
-          data: {
-            modelName: modelNameChat, // legacy
-            modelNameChat,
-            modelNameSystem,
-            usage: {
-              input_tokens: usageChat.input_tokens + usageSystem.input_tokens,
-              output_tokens:
-                usageChat.output_tokens + usageSystem.output_tokens,
-              total_tokens: usageChat.total_tokens + usageSystem.total_tokens,
-            },
-            usageChat,
-            usageSystem,
-          },
-        }),
-      );
+      this.emitModelStats(usageChat, usageSystem);
 
       this.emitter.emit('end');
     } catch (error: unknown) {
