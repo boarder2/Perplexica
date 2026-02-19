@@ -1,4 +1,5 @@
 import { updateToolCallMarkup } from '@/lib/utils/toolCallMarkup';
+import { encodeHtmlAttribute } from '@/lib/utils/html';
 import { cleanupCancelToken, registerCancelToken } from '@/lib/cancel-tokens';
 import {
   getCustomOpenaiApiKey,
@@ -227,7 +228,7 @@ const handleEmitterEvents = async (
 
       // Update received message for persistence if needed
       if (parsedData.type === 'subagent_started') {
-        const markup = `<SubagentExecution id="${parsedData.executionId}" name="${parsedData.name}" task="${parsedData.task}" status="running"></SubagentExecution>\n`;
+        const markup = `<SubagentExecution id="${parsedData.executionId}" name="${encodeHtmlAttribute(parsedData.name ?? '')}" task="${encodeHtmlAttribute(parsedData.task ?? '')}" status="running"></SubagentExecution>\n`;
         recievedMessage += markup;
       } else if (parsedData.type === 'subagent_data') {
         // Persist nested tool call markup inside SubagentExecution tags

@@ -363,6 +363,18 @@ export class SimplifiedAgent {
         (startsWithAscii || startsWithCurly) && containsSelection;
       const toolCalls: Record<string, string> = {};
 
+      // Run-ID attribution sets (see AGENTS.md — Run-ID Attribution section)
+      // LangChain's AsyncLocalStorage propagates the parent's callback context into child
+      // tool executions, so child SimplifiedAgent LLM events also appear in this stream.
+      // These sets let us distinguish the parent agent's own events from nested child events.
+
+      // run_id of each active deep_research tool invocation in the parent graph's tools node
+      const deepResearchRunIds = new Set<string>();
+      // run_id of each 'tools' node chain start that belongs to the parent graph (not a child)
+      const parentToolsNodeRunIds = new Set<string>();
+      // run_id of each LLM call that belongs to THIS parent agent's 'agent' node
+      const activeAgentLlmRunIds = new Set<string>();
+
       // Initialize agent with the provided focus mode and file context
       // Pass the number of messages that will be sent to the LLM so prompts can adapt.
       const llmMessagesCount = messagesHistory.length;
@@ -440,6 +452,14 @@ export class SimplifiedAgent {
                 return;
               }
 
+              // Skip tool calls from child SimplifiedAgent graphs.
+              // parentRunId is the run_id of the invoking 'tools' node; if it isn't in
+              // parentToolsNodeRunIds it belongs to a nested child graph, not this agent.
+              if (parentRunId && !parentToolsNodeRunIds.has(parentRunId)) {
+                delete toolCalls[runId];
+                return;
+              }
+
               // Emit a tool_call_started event so UI can display a running state spinner.
               try {
                 const type = toolName.trim();
@@ -508,6 +528,9 @@ export class SimplifiedAgent {
 
               const toolName = toolCalls[runId];
 
+              // Skip if the tool was never registered (e.g. filtered out as a child-graph call)
+              if (!toolName) return;
+
               // Skip generic tool events for deep_research and todo_list (have specialized rendering)
               if (toolName === 'deep_research' || toolName === 'todo_list') {
                 delete toolCalls[runId];
@@ -551,6 +574,9 @@ export class SimplifiedAgent {
               });
 
               const toolName = toolCalls[runId];
+
+              // Skip if the tool was never registered (e.g. filtered out as a child-graph call)
+              if (!toolName) return;
 
               // Skip generic tool events for deep_research and todo_list (have specialized rendering)
               if (toolName === 'deep_research' || toolName === 'todo_list') {
@@ -687,6 +713,54 @@ export class SimplifiedAgent {
             }
           };
 
+          // --- Run-ID attribution tracking (Steps 2-4) ---
+          // Step 2: Track deep_research tool execution run IDs.
+          // Any on_chat_model_start / on_chain_start with a parent_id in this set
+          // belongs to a child SimplifiedAgent, not the parent graph.
+          if (event.event === 'on_tool_start' && event.name === 'deep_research') {
+            deepResearchRunIds.add(event.run_id);
+          }
+          if (
+            (event.event === 'on_tool_end' || event.event === 'on_tool_error') &&
+            event.name === 'deep_research'
+          ) {
+            deepResearchRunIds.delete(event.run_id);
+          }
+
+          // Step 3: Track parent-graph 'tools' node run IDs.
+          // handleToolStart callbacks receive parentRunId; we compare it against this set
+          // to skip tool call lifecycle events that come from child agent tool executions.
+          if (
+            event.event === 'on_chain_start' &&
+            event.metadata?.langgraph_node === 'tools' &&
+            !(event as unknown as { parent_ids?: string[] }).parent_ids?.some(
+              (id: string) => deepResearchRunIds.has(id),
+            )
+          ) {
+            parentToolsNodeRunIds.add(event.run_id);
+          }
+          if (
+            (event.event === 'on_chain_end' || event.event === 'on_chain_error') &&
+            event.metadata?.langgraph_node === 'tools'
+          ) {
+            parentToolsNodeRunIds.delete(event.run_id);
+          }
+
+          // Step 4: Register parent-agent LLM run IDs.
+          // Drain happens later in the on_chat_model_end handler (after token counting)
+          // to avoid a use-after-delete race on the same event.
+          if (
+            event.event === 'on_chat_model_start' &&
+            event.metadata?.langgraph_node === 'agent' &&
+            !(event as unknown as { parent_ids?: string[] }).parent_ids?.some(
+              (id: string) => deepResearchRunIds.has(id),
+            )
+          ) {
+            activeAgentLlmRunIds.add(event.run_id);
+          }
+
+          // --- End attribution tracking ---
+
           // Handle different event types
           if (
             event.event === 'on_chain_end' &&
@@ -731,13 +805,22 @@ export class SimplifiedAgent {
           }
 
           // Handle streaming tool calls (for thought messages)
-          if (event.event === 'on_chat_model_end' && event.data.output) {
+          // Only count events from the 'agent' node (createReactAgent's LLM node).
+          // In LangChain/LangGraph v1.x, AsyncLocalStorage propagates parent callbacks into
+          // tool executions, so system model llm.invoke() calls inside tools also fire
+          // on_chat_model_end in this stream. Those events have langgraph_node === 'tools'
+          // and must be excluded — their tokens are reported via tool_llm_usage instead.
+          // Additionally guard by activeAgentLlmRunIds to exclude child SimplifiedAgent
+          // LLM calls (which also have langgraph_node === 'agent' from the child's graph).
+          if (
+            event.event === 'on_chat_model_end' &&
+            event.data.output &&
+            event.metadata?.langgraph_node === 'agent' &&
+            activeAgentLlmRunIds.has(event.run_id)
+          ) {
             const output = event.data.output;
             console.log(`SimplifiedAgent: on_chat_model_end`, event);
 
-            // All on_chat_model_end events in the agent's streamEvents come from
-            // createReactAgent({ llm: this.chatLlm }), so they are always chat model tokens —
-            // whether the LLM is generating tool calls or the final answer.
             if (output.usage_metadata) {
               const normalized = normalizeUsageMetadata(output.usage_metadata);
               usageChat.input_tokens += normalized.input_tokens;
@@ -764,14 +847,25 @@ export class SimplifiedAgent {
               this.emitModelStats(usageChat, usageSystem);
             }
           }
+          // Drain activeAgentLlmRunIds AFTER the token-counting check above so the
+          // has() test doesn't evaluate against an already-deleted entry.
+          if (event.event === 'on_chat_model_end') {
+            activeAgentLlmRunIds.delete(event.run_id);
+          }
 
-          // Handle LLM end events for token usage tracking
-          if (event.event === 'on_llm_end' && event.data.output) {
+          // Handle LLM end events for token usage tracking (completion models only; same
+          // node filter as on_chat_model_end to exclude tool-level system LLM calls).
+          // Also guarded by activeAgentLlmRunIds for the same child-agent reason above.
+          if (
+            event.event === 'on_llm_end' &&
+            event.data.output &&
+            event.metadata?.langgraph_node === 'agent' &&
+            activeAgentLlmRunIds.has(event.run_id)
+          ) {
             const output = event.data.output;
 
-            // All on_llm_end events in the agent's streamEvents come from the chat model
-            // (the only LLM in the agent graph). System model calls (e.g. url_summarization)
-            // are direct llm.invoke() calls outside the graph and report via tool_llm_usage.
+            // Only count tokens from the agent node. System model calls inside tools
+            // report via tool_llm_usage and have langgraph_node === 'tools'.
             if (output.llmOutput?.tokenUsage) {
               const normalized = normalizeUsageMetadata(
                 output.llmOutput.tokenUsage,
@@ -787,8 +881,15 @@ export class SimplifiedAgent {
             }
           }
 
-          // Handle token-level streaming for the final response
-          if (event.event === 'on_chat_model_stream' && event.data.chunk) {
+          // Handle token-level streaming for the final response.
+          // Guard by activeAgentLlmRunIds so that tokens from child SimplifiedAgent
+          // instances (spawned by deep_research) — which bubble up via AsyncLocalStorage
+          // callback propagation — are not emitted as parent response tokens.
+          if (
+            event.event === 'on_chat_model_stream' &&
+            event.data.chunk &&
+            activeAgentLlmRunIds.has(event.run_id)
+          ) {
             const chunk = event.data.chunk;
             const textContent = extractTextContent(chunk.content);
 

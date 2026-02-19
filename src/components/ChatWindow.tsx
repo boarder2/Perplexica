@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { updateToolCallMarkup } from '@/lib/utils/toolCallMarkup';
+import { encodeHtmlAttribute } from '@/lib/utils/html';
 import { Document } from '@langchain/core/documents';
 import Navbar from './Navbar';
 import Chat from './Chat';
@@ -713,7 +714,7 @@ const ChatWindow = ({ id }: { id?: string }) => {
       // Handle subagent execution started
       if (data.type === 'subagent_started') {
         console.log('ChatWindow: Subagent started:', data);
-        const subagentMarkup = `<SubagentExecution id="${data.executionId}" name="${data.name}" task="${data.task}" status="running"></SubagentExecution>\n`;
+        const subagentMarkup = `<SubagentExecution id="${data.executionId}" name="${encodeHtmlAttribute(data.name ?? '')}" task="${encodeHtmlAttribute(data.task ?? '')}" status="running"></SubagentExecution>\n`;
 
         if (!added) {
           setMessages((prevMessages) => [

@@ -164,18 +164,38 @@ Provide a comprehensive summary of the above web page content, focusing on infor
               // ...getLangfuseCallbacks(),
             });
 
-            // Emit token usage from this LLM call so parent agent can accumulate it
-            if (emitter && result.usage_metadata) {
-              const usage = result.usage_metadata;
+            // Emit token usage from this LLM call so parent agent can accumulate it.
+            // Prefer usage_metadata (standardized LangChain field); fall back to
+            // response_metadata.usage for OpenAI-format providers (Ollama, LM Studio, etc.)
+            // that don't populate usage_metadata but do include prompt_tokens/completion_tokens.
+            const usageData =
+              result.usage_metadata ??
+              (result.response_metadata?.usage as
+                | Record<string, number>
+                | null
+                | undefined);
+            if (emitter && usageData) {
+              const rawUsage = usageData as Record<string, number>;
+              const inputTokens =
+                rawUsage.input_tokens ||
+                rawUsage.prompt_tokens ||
+                rawUsage.promptTokens ||
+                0;
+              const outputTokens =
+                rawUsage.output_tokens ||
+                rawUsage.completion_tokens ||
+                rawUsage.completionTokens ||
+                0;
               emitter.emit(
                 'tool_llm_usage',
                 JSON.stringify({
                   target: 'system',
-                  input_tokens: usage.input_tokens || 0,
-                  output_tokens: usage.output_tokens || 0,
+                  input_tokens: inputTokens,
+                  output_tokens: outputTokens,
                   total_tokens:
-                    usage.total_tokens ||
-                    (usage.input_tokens || 0) + (usage.output_tokens || 0),
+                    rawUsage.total_tokens ||
+                    rawUsage.totalTokens ||
+                    inputTokens + outputTokens,
                 }),
               );
             }
