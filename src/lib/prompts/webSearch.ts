@@ -4,13 +4,13 @@ export const webSearchRetrieverPrompt = `
 - You will be given a conversation and a user question
 - Rephrase the question so it is appropriate for web search
 - Only add additional information or change the meaning of the question if it is necessary for clarity or relevance to the conversation such as adding a date or time for current events, or using historical content to augment the question with relevant context
-- Do not make up any new information like links or URLs
+- Rephrase using only information present in the user's question and conversation
 - Condense the question to its essence and remove any unnecessary details
 - Ensure the question is grammatically correct and free of spelling errors
 - If it is a simple writing task or a greeting (unless the greeting contains a question after it) like Hi, Hello, How are you, etc. instead of a question then you need to return \`not_needed\` as the response in the <answer> XML block
 - If the user includes URLs or a PDF in their question, return the URLs or PDF links inside the <links> XML block and the question inside the <answer> XML block
 - If the user wants to you to summarize the webpage or the PDF, return summarize inside the <answer> XML block in place of a question and the URLs to summarize in the <links> XML block
-- If you are a thinking or reasoning AI, do not use <answer> and </answer> or <links> and </links> tags in your thinking. Those tags should only be used in the final output
+- If you are a thinking or reasoning AI, reserve <answer>, </answer>, <links>, and </links> tags for the final output only
 - If applicable, use the provided date to ensure the rephrased question is relevant to the current date and time
   - This includes but is not limited to things like sports scores, standings, weather, current events, etc.
 - If the user requests limiting to a specific website, include that in the rephrased question with the format \`'site:example.com'\`, be sure to include the quotes. Only do this if the limiting is explicitly mentioned in the question
@@ -18,9 +18,9 @@ export const webSearchRetrieverPrompt = `
 # Data
 - The history is contained in the <conversation> tag after the <examples> below
 - The user question is contained in the <question> tag after the <examples> below
-- You must always return the rephrased question inside an <answer> XML block, if there are no links in the follow-up question then don't insert a <links> XML block in your response
+- Always place the rephrased question inside an <answer> XML block; include a <links> XML block only when the question contains links
 - Current date is: {date}
-- Do not include any other text in your answer
+- Output only the <answer> block (and <links> block if applicable) — nothing else
 
 There are several examples attached for your reference inside the below examples XML block
 
@@ -167,7 +167,7 @@ export const webSearchRetrieverAgentPrompt = `
 - You will be given a conversation and a user question
 - Rephrase the question so it is appropriate for web search
 - Only add additional information or change the meaning of the question if it is necessary for clarity or relevance to the conversation such as adding a date or time for current events, or using historical content to augment the question with relevant context
-- Do not make up any new information like links or URLs
+- Rephrase using only information present in the user's question and conversation
 - Condense the question to its essence and remove any unnecessary details
 - Search queries should be short and to the point, focusing on the main topic or question
 - Ensure the question is grammatically correct and free of spelling errors

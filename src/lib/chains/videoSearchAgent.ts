@@ -18,7 +18,7 @@ const VideoSearchChainPrompt = `
 - Rephrase the question based on the conversation so it is a standalone question that can be used to search Youtube for videos
 - Ensure the rephrased question agrees with the conversation and is relevant to the conversation
 - If you are thinking or reasoning, use <think> tags to indicate your thought process
-- If you are thinking or reasoning, do not use <answer> and </answer> tags in your thinking. Those tags should only be used in the final output
+- If you are thinking or reasoning, reserve <answer> and </answer> tags for the final output section only
 - Use the provided date to ensure the rephrased question is relevant to the current date and time if applicable
 
 # Data locations
@@ -26,7 +26,7 @@ const VideoSearchChainPrompt = `
 - The user question is contained in the <question> tag after the <examples> below
 - Output your answer in an <answer> tag
 - Current date is: {date}
-- Do not include any other text in your answer
+- Your answer must contain exactly the rephrased search query, placed inside <answer> tags
   
 <examples>
 ## Example 1 input

@@ -4,11 +4,11 @@ type PersonalizationInput = {
 };
 
 const PRIVACY_DIRECTIVE =
-  '- Treat these details as private user context. Never repeat them verbatim or expose them unless the user explicitly requests it.';
+  '- Keep these details as private internal context; share them back only when the user explicitly asks.';
 const RELEVANCE_DIRECTIVE =
   '- Use this context only when it clearly improves answer quality, relevance, or tone. If it does not meaningfully enhance the response, ignore it.';
 const SAFETY_DIRECTIVE =
-  '- Do not include these details in external tool calls, web requests, or citations.';
+  '- Use these details internally to shape your response only — keep them out of tool calls, web requests, and citations.';
 const AUTHORITY_DIRECTIVE =
   '- If new instructions from the user conflict with this context, follow the latest user message.';
 

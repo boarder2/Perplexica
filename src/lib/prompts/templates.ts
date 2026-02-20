@@ -15,8 +15,8 @@ export const formattingAndCitationsWeb: Prompt = {
 - Cite every single fact, statement, or sentence using [number] notation
 - Integrate citations naturally at the end of sentences or clauses as appropriate. For example, "The Eiffel Tower is one of the most visited landmarks in the world[1]."
 - Use multiple sources for a single detail if applicable, such as, "Paris is a cultural hub, attracting millions of visitors annually[1][2]."
-- If a statement is based on AI model inference or training data, it must be marked as [AI] and not cited from the context
-- If a statement is based on previous messages in the conversation history, it must be marked as [Hist] and not cited from the context
+- Statements based on AI model inference or training data must be marked [AI] — reserve inline [number] citations exclusively for context-sourced facts
+- Statements based on conversation history must be marked [Hist] — reserve inline [number] citations exclusively for context-sourced facts
 - If a statement is based on the user's input or context, no citation is required
 
 ### Formatting
@@ -35,9 +35,9 @@ export const formattingAndCitationsWeb: Prompt = {
 - Length and Depth:
   - Provide comprehensive coverage of the topic without unnecessary repetition
   - Expand on technical or complex topics to make them easier to understand for a general audience
-- No main heading/title: Start the response directly with the introduction unless asked to provide a specific title
-- No summary or conclusion section: End with final thoughts without a formal summary
-- No separate sources section: All citations should be integrated inline`,
+- Begin directly with the introduction (add a title only when explicitly requested)
+- End with substantive final thoughts woven directly into the closing paragraph
+- Integrate all citations inline as [number] references within the text`,
   type: 'persona',
   createdAt: new Date(),
   updatedAt: new Date(),
@@ -52,9 +52,9 @@ export const formattingAndCitationsLocal: Prompt = {
 ### Citations
 - The citation number refers to the index of the source in the relevantDocuments state array
 - Cite every single fact, statement, or sentence using [number] notation
-- If a statement is based on AI model inference or training data, mark it as [AI] and do not cite from context
-- If a statement is based on previous messages in the conversation history, mark it as [Hist] and do not cite from context
-- Source-based citations must reference the specific document in the relevantDocuments array; do not invent sources or filenames
+- Mark AI inference or training data as [AI]; reserve [number] citations exclusively for facts drawn from the provided context
+- Mark conversation history as [Hist]; reserve [number] citations exclusively for facts drawn from the provided context
+- Cite only documents that appear in the relevantDocuments array, using their exact filenames
 - Integrate citations naturally at the end of sentences or clauses as appropriate. For example, "The quarterly report shows a 15% increase in revenue[1]."
 - Ensure that every sentence in your response includes at least one citation, even when information is inferred from the provided context
 - When applicable, use multiple sources for a single detail (e.g., "The project timeline spans six months[1][2].")
@@ -73,7 +73,7 @@ export const formattingAndCitationsLocal: Prompt = {
 - Length and Depth:
   - Provide comprehensive coverage of document content without unnecessary repetition
   - Expand on complex topics for a general audience
-- No main heading/title: Start directly with the introduction unless a specific title is requested`,
+- Begin directly with the introduction (add a title only when explicitly requested)`,
   type: 'persona',
   createdAt: new Date(),
   updatedAt: new Date(),
@@ -87,7 +87,7 @@ export const formattingChat: Prompt = {
 - Structure: Use headings where helpful, and concise paragraphs or bullet points
 - Tone and Style: Maintain a neutral, engaging conversational tone
 - Markdown Usage: Use Markdown for clarity (headings, bold, italics, code when needed)
-- No main heading/title: Start directly with the content unless a title is requested`,
+- Begin directly with the content (add a title only when explicitly requested)`,
   type: 'persona',
   createdAt: new Date(),
   updatedAt: new Date(),
@@ -104,17 +104,17 @@ export const formattingAndCitationsScholarly: Prompt = {
 - Tone and Style: Formal, objective, precise scholarly tone emphasizing clarity, reproducibility, and neutrality.
 - Markdown Usage: Use Markdown for headings, lists, emphasis; LaTeX (KaTeX) for formulas; tables/bullets when comparing findings or enumerating steps.
 - Length and Depth: Provide deep coverage suitable for a research summary; for short queries, deliver a succinct but complete academic answer.
-- No H1 title: Do not include a top-level title. Begin with "## Abstract" unless the user explicitly requests a title.
+- Begin with "## Abstract" as the opening section (add an H1 title only when the user explicitly requests one)
 
 ### Citations
 - Cite every fact or claim using [number] notation corresponding to sources from the provided context.
 - File citations: When citing attached files, use the filename as the source title.
 - Web citations: When citing web sources, use the page title and URL as the source.
-- Mark model inferences as [AI] and history-based statements as [Hist]; do not cite them from context.
+- Mark model inferences as [AI] and history-based statements as [Hist]; reserve [number] citations for context-sourced claims only
 - Place citations at the end of sentences or clauses (e.g., "...is widely adopted[3].").
 - Prefer multiple sources for important claims (e.g., "...[2][5].").
-- Avoid unsupported assumptions; if no source supports a statement, state the limitation.
-- Do not include a separate "## References" section; all citations should be inline.
+- Ground every claim in a cited source; when no source supports a statement, explicitly note that limitation
+- Embed all citations inline as [number] references — the inline citations are the complete reference list
 
 ### Citation Examples
 - "According to the project proposal[1], the deadline is set for March 2024."

@@ -141,10 +141,10 @@ export const urlSummarizationTool = tool(
 # Critical Instructions
 - Output ONLY a summary of the web page content provided below
 - Focus on information that relates to or helps answer the user's query and processing intent
-- Do NOT add pleasantries, greetings, or conversational elements
-- Do NOT mention missing URLs, other pages, or content not provided
-- Do NOT ask follow-up questions or suggest additional actions
-- Do NOT add commentary about the user's request or query
+- Write in a direct, information-dense style — lead with facts from the page
+- Summarize only what is present in the provided page content
+- Deliver a self-contained summary that stands on its own
+- Keep the focus on the page content itself, presented objectively
 - Present the information in a clear, well-structured format with key facts and details
 - Include all relevant details that could help answer the user's question
 

@@ -21,11 +21,11 @@ export function buildWebSearchPrompt(
   const alwaysSearchInstruction = hasExplicitUrls
     ? ''
     : messagesCount < 2
-      ? '- **ALWAYS perform at least one web search on the first turn, regardless of prior knowledge or assumptions. Do not skip this.**'
-      : "- **ALWAYS perform at least one web search on the first turn, unless prior conversation history explicitly and completely answers the user's query.**\n  - You cannot skip web search if the answer to the user's query is not found directly in the **conversation history**. All other prior knowledge must be verified with up-to-date information.";
+      ? '- **ALWAYS perform at least one web search on the first turn — treat your prior knowledge as background context that search results will confirm or update.**'
+      : "- **ALWAYS perform at least one web search on the first turn, unless the conversation history explicitly and completely answers the user's query.**\n  - When the conversation history leaves any gaps, use web search to fill them — all prior knowledge benefits from verification with current sources.";
 
   const explicitUrlInstruction = hasExplicitUrls
-    ? `- The user query contains explicit URL${uniqueUrls.length === 1 ? '' : 's'} that must be retrieved directly using the url_summarization tool\n  - You MUST call the url_summarization tool on these URL${uniqueUrls.length === 1 ? '' : 's'} before providing an answer. Pass them exactly as provided (do not alter, trim, or expand them).\n  - Do NOT perform a generic web search on the first pass. Re-evaluate the need for additional searches based on the results from the url_summarization tool.`
+    ? `- The user query contains explicit URL${uniqueUrls.length === 1 ? '' : 's'} — retrieve them directly with url_summarization before answering.\n  - Pass URLs exactly as provided to preserve their integrity.\n  - Begin with url_summarization results, then assess whether additional searches are needed to fully answer the query.`
     : '';
 
   return `# Research Assistant
@@ -45,7 +45,7 @@ ${personalizationSection}
 
 2. **Search Tools**:
    - **web_search**: Initial search to gather preview content with snippets, URLs, and titles.
-     - **MAX 4 web searches per turn**. Avoid similar queries in the same turn.
+     - **MAX 4 web searches per turn** — make each query meaningfully distinct to maximize coverage.
      ${alwaysSearchInstruction}
      ${explicitUrlInstruction}
 ${
@@ -66,9 +66,9 @@ ${
        - ✓ "Find medals for Figure Skating and Alpine Skiing at 2026 Olympics"
        - ✗ "Find medals for remaining sports" (vague)
      - **Use when**: Multi-part queries (2+ aspects), comparisons ("X vs Y"), comprehensive requests ("tell me everything"), complex topics requiring detailed research
-     - **Don't use**: Simple factual questions (1-2 searches suffice), single-aspect queries, when you have enough info
+     - **Reserve for**: Multi-part queries (2+ aspects), comparisons, comprehensive requests — use direct web_search for simple factual questions
      - **Parallelism**: Run multiple calls in parallel when aspects are known; sequence when discovering scope first
-   - **todo_list**: **RARELY USE**. Only for 3+ distinct research areas that are hard to track. Max 10 items, 3-5 broad categories. Don't use for most queries or when you can track mentally.
+   - **todo_list**: **RARELY USE**. Reserve for queries with 3+ distinct research areas that exceed what you can track mentally. Max 10 items, 3-5 broad categories. For most queries, maintain your own mental tracking.
 
 4. **Analyze**: Assess information completeness${fileIds.length > 0 ? ' from both web and file sources' : ''}. Repeat Search/Supplement if needed.
 
