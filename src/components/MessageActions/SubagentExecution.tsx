@@ -14,6 +14,23 @@ import { decodeHtmlEntities } from '@/lib/utils/html';
 import Markdown, { MarkdownToJSX } from 'markdown-to-jsx';
 import { cn } from '@/lib/utils';
 
+/**
+ * Strip think-tag content from text, handling both properly paired
+ * <think>...</think> and orphaned </think> (no opening tag) patterns.
+ */
+const stripThinkContent = (text: string): string => {
+  // Remove properly paired <think>...</think>
+  let result = text.replace(/<think[^>]*>[\s\S]*?<\/think>/g, '');
+  // Remove orphaned </think> and text preceding them
+  if (result.includes('</think>')) {
+    result = result.replace(
+      /(^|<\/[a-zA-Z][a-zA-Z0-9]*\s*>)[\s\S]*?<\/think>/g,
+      '$1',
+    );
+  }
+  return result.trim();
+};
+
 interface SubagentExecutionProps {
   id?: string;
   name?: string;
@@ -90,7 +107,8 @@ export const SubagentExecution: React.FC<SubagentExecutionProps> = ({
   const decodedSummary = summary ? decodeHtmlEntities(summary) : '';
 
   // Unified response content: prefer summary (final) over responseText (streaming)
-  const responseContent = decodedSummary || decodedResponse;
+  // Strip think-tag content so thinking text doesn't leak into the subagent response panel
+  const responseContent = stripThinkContent(decodedSummary || decodedResponse);
 
   const getStatusIcon = () => {
     switch (status) {

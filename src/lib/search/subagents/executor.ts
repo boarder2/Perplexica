@@ -14,6 +14,7 @@ import { SimplifiedAgent } from '@/lib/search/simplifiedAgent';
 import { SubagentDefinition } from './definitions';
 import { CachedEmbeddings } from '@/lib/utils/cachedEmbeddings';
 import { allAgentTools } from '@/lib/tools/agents';
+import { removeThinkingBlocks } from '@/lib/utils/contentUtils';
 
 /**
  * SubagentExecutor runs a SimplifiedAgent with subagent-specific constraints
@@ -195,7 +196,7 @@ export class SubagentExecutor {
         startTime,
         endTime,
         documents: collectedData.documents,
-        summary: collectedData.responseText.trim(),
+        summary: removeThinkingBlocks(collectedData.responseText).trim(),
         tokenUsage: capturedTokenUsage,
       };
 

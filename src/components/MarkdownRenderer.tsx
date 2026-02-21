@@ -1,4 +1,3 @@
- 
 'use client';
 
 import { cn } from '@/lib/utils';
@@ -28,31 +27,125 @@ import CitationLink from './CitationLink';
 import { decodeHtmlEntities } from '@/lib/utils/html';
 import { SubagentExecution } from './MessageActions/SubagentExecution';
 
-// Helper functions for think overlay
-const _extractThinkContent = (content: string): string | null => {
-  const thinkRegex = /<think[^>]*>([\s\S]*?)<\/think>/g;
-  const matches = content.match(thinkRegex);
-  if (!matches) return null;
+/**
+ * Pattern matching known custom element closing tags (ToolCall, SubagentExecution).
+ * Used as boundaries to distinguish markdown content from orphaned think text.
+ * Must NOT match arbitrary HTML-like tags that models may produce in their
+ * thinking output (e.g. </parameter>, </tool>, </result>).
+ */
+const KNOWN_CLOSING_TAG = '<\\/(?:ToolCall|SubagentExecution)\\s*>';
 
-  // Extract content between think tags and join if multiple
-  const extractedContent = matches
-    .map((match) => match.replace(/<\/?think[^>]*>/g, ''))
-    .join('\n\n');
-
-  // Return null if content is empty or only whitespace
-  return extractedContent.trim().length === 0 ? null : extractedContent;
-};
-
+/**
+ * Remove think-tag content, handling both properly paired <think>...</think>
+ * and orphaned </think> (no opening tag) from providers like LM Studio.
+ */
 const removeThinkTags = (content: string): string => {
-  return content.replace(/<think[^>]*>[\s\S]*?<\/think>/g, '').trim();
+  // Remove properly paired <think>...</think>
+  let result = content.replace(/<think[^>]*>[\s\S]*?<\/think>/g, '');
+  // Remove orphaned </think> and text preceding them (think content without opening tag).
+  // Only treats known custom element closing tags as boundaries; arbitrary HTML-like
+  // tags in model thinking output (e.g. </parameter>) are treated as think content.
+  if (result.includes('</think>')) {
+    result = result.replace(
+      new RegExp(`(^|${KNOWN_CLOSING_TAG})([\\s\\S]*?)<\\/think>`, 'g'),
+      '$1',
+    );
+  }
+  return result.trim();
 };
 
-// Add stable IDs to think tags if they don't already have them
-const addThinkBoxIds = (content: string): string => {
+// Split content into alternating markdown and think segments.
+// This must happen before markdown-to-jsx sees the content because the library
+// only treats standard HTML5 block elements as block HTML; <think> is unknown
+// and treated as inline, causing blank lines inside it to end the HTML block
+// and spill the remaining thinking text as plain markdown.
+interface ContentSegment {
+  type: 'markdown' | 'think';
+  content: string;
+  id: string;
+}
+
+/**
+ * Split content by think blocks, handling both:
+ * 1. Properly paired <think>...</think>
+ * 2. Orphaned </think> (no opening <think>) from providers like LM Studio
+ *    that stream thinking content as regular text.
+ */
+const splitByThinkBlocks = (content: string): ContentSegment[] => {
+  const segments: ContentSegment[] = [];
+  // Match either a proper <think>...</think> pair (group 1) or a standalone </think>
+  const regex = /<think(?:\s[^>]*)?>([\s\S]*?)<\/think>|<\/think>/g;
+  let lastIndex = 0;
   let thinkCounter = 0;
-  return content.replace(/<think(?![^>]*\sid=)/g, () => {
-    return `<think id="think-${thinkCounter++}"`;
-  });
+  let match: RegExpExecArray | null;
+
+  while ((match = regex.exec(content)) !== null) {
+    if (match[1] !== undefined) {
+      // Properly paired <think>...</think>
+      if (match.index > lastIndex) {
+        segments.push({
+          type: 'markdown',
+          content: content.slice(lastIndex, match.index),
+          id: `md-${segments.length}`,
+        });
+      }
+      segments.push({
+        type: 'think',
+        content: match[1].trim(),
+        id: `think-${thinkCounter++}`,
+      });
+    } else {
+      // Orphaned </think> — content since lastIndex is a mix of
+      // possible HTML tags (ToolCall, etc.) followed by think text.
+      const chunk = content.slice(lastIndex, match.index);
+
+      if (chunk.trim()) {
+        // Find the boundary: everything up to and including the last
+        // known custom element closing tag is markdown; everything after is think text.
+        // Only ToolCall and SubagentExecution are treated as boundaries — arbitrary
+        // HTML-like tags in model output (e.g. </parameter>) are think content.
+        const boundary = chunk.match(
+          new RegExp(`^([\\s\\S]*${KNOWN_CLOSING_TAG})([\\s\\S]*)$`),
+        );
+
+        if (boundary) {
+          const [, markdownPart, thinkPart] = boundary;
+          if (markdownPart.trim()) {
+            segments.push({
+              type: 'markdown',
+              content: markdownPart,
+              id: `md-${segments.length}`,
+            });
+          }
+          if (thinkPart.trim()) {
+            segments.push({
+              type: 'think',
+              content: thinkPart.trim(),
+              id: `think-${thinkCounter++}`,
+            });
+          }
+        } else {
+          // No HTML tags in chunk — entire chunk is think content
+          segments.push({
+            type: 'think',
+            content: chunk.trim(),
+            id: `think-${thinkCounter++}`,
+          });
+        }
+      }
+    }
+    lastIndex = match.index + match[0].length;
+  }
+
+  if (lastIndex < content.length) {
+    segments.push({
+      type: 'markdown',
+      content: content.slice(lastIndex),
+      id: `md-${segments.length}`,
+    });
+  }
+
+  return segments;
 };
 
 interface MarkdownRendererProps {
@@ -352,9 +445,6 @@ const MarkdownRenderer = ({
   onThinkBoxToggle,
   sources,
 }: MarkdownRendererProps) => {
-  // Preprocess content to add stable IDs to think tags
-  const processedContent = addThinkBoxIds(content);
-
   // Check if a think box is expanded
   const isThinkBoxExpanded = (thinkBoxId: string) => {
     return expandedThinkBoxes?.has(thinkBoxId) || false;
@@ -367,11 +457,7 @@ const MarkdownRenderer = ({
     }
   };
 
-  // Determine what content to render based on showThinking parameter
-  const contentToRender = showThinking
-    ? processedContent
-    : removeThinkTags(processedContent);
-  // Markdown formatting options
+  // Markdown formatting options — <think> is intentionally absent; handled pre-render
   const markdownOverrides: MarkdownToJSX.Options = {
     overrides: {
       ToolCall: {
@@ -379,23 +465,6 @@ const MarkdownRenderer = ({
       },
       SubagentExecution: {
         component: SubagentExecution,
-      },
-      think: {
-        component: ({ children, id, ..._props }) => {
-          // Use the id from the HTML attribute
-          const thinkBoxId = id || 'think-unknown';
-          const isExpanded = isThinkBoxExpanded(thinkBoxId);
-
-          return (
-            <ThinkTagProcessor
-              id={thinkBoxId}
-              isExpanded={isExpanded}
-              onToggle={handleThinkBoxToggle}
-            >
-              {children}
-            </ThinkTagProcessor>
-          );
-        },
       },
       code: {
         component: ({ className, children }) => {
@@ -452,25 +521,81 @@ const MarkdownRenderer = ({
     },
   };
 
-  return (
-    contentToRender &&
-    contentToRender.length > 0 && (
+  if (!content || content.length === 0) return null;
+
+  const proseClassName = cn(
+    'prose prose-theme dark:prose-invert prose-h1:mb-3 prose-h2:mb-2 prose-h2:mt-6 prose-h2:font-[800] prose-h3:mt-4 prose-h3:mb-1.5 prose-h3:font-[600] prose-p:leading-relaxed prose-pre:p-0 font-[400]',
+    'prose-code:bg-transparent prose-code:p-0 prose-code:text-inherit prose-code:font-normal prose-code:before:content-none prose-code:after:content-none',
+    'prose-pre:bg-transparent prose-pre:border-0 prose-pre:m-0 prose-pre:p-0',
+    'prose-strong:font-bold',
+    'break-words max-w-full',
+    className,
+  );
+
+  // For showThinking=false, strip think blocks entirely and render as plain markdown
+  if (!showThinking) {
+    const stripped = removeThinkTags(content);
+    if (!stripped || stripped.length === 0) return null;
+    return (
       <div className="relative">
-        <Markdown
-          className={cn(
-            'prose prose-theme dark:prose-invert prose-h1:mb-3 prose-h2:mb-2 prose-h2:mt-6 prose-h2:font-[800] prose-h3:mt-4 prose-h3:mb-1.5 prose-h3:font-[600] prose-p:leading-relaxed prose-pre:p-0 font-[400]',
-            'prose-code:bg-transparent prose-code:p-0 prose-code:text-inherit prose-code:font-normal prose-code:before:content-none prose-code:after:content-none',
-            'prose-pre:bg-transparent prose-pre:border-0 prose-pre:m-0 prose-pre:p-0',
-            'prose-strong:font-bold',
-            'break-words max-w-full',
-            className,
-          )}
-          options={markdownOverrides}
-        >
-          {contentToRender}
+        <Markdown className={proseClassName} options={markdownOverrides}>
+          {stripped}
         </Markdown>
       </div>
-    )
+    );
+  }
+
+  // Split content into segments so <think> blocks are extracted before markdown-to-jsx
+  // processes them (the library would mis-parse multi-paragraph think blocks as plain text).
+  const segments = splitByThinkBlocks(content);
+
+  // Fast path: no think blocks present — render content directly
+  if (segments.length === 0) return null;
+  if (segments.length === 1 && segments[0].type === 'markdown') {
+    return (
+      <div className="relative">
+        <Markdown className={proseClassName} options={markdownOverrides}>
+          {content}
+        </Markdown>
+      </div>
+    );
+  }
+
+  // Segment rendering: think blocks become ThinkBox components, markdown renders normally
+  return (
+    <div className="relative">
+      {segments.map((segment) => {
+        if (segment.type === 'think') {
+          if (!segment.content) return null;
+          return (
+            <ThinkTagProcessor
+              key={segment.id}
+              id={segment.id}
+              isExpanded={isThinkBoxExpanded(segment.id)}
+              onToggle={handleThinkBoxToggle}
+            >
+              <MarkdownRenderer
+                content={segment.content}
+                showThinking={false}
+                sources={sources}
+              />
+            </ThinkTagProcessor>
+          );
+        }
+
+        const trimmed = segment.content.trim();
+        if (!trimmed) return null;
+        return (
+          <Markdown
+            key={segment.id}
+            className={proseClassName}
+            options={markdownOverrides}
+          >
+            {segment.content}
+          </Markdown>
+        );
+      })}
+    </div>
   );
 };
 

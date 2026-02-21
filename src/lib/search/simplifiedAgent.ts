@@ -69,10 +69,11 @@ function normalizeUsageMetadata(usageData: Record<string, number>): {
 
 /**
  * Extract text content from LLM message content (handles both string and array formats)
- * OpenAI returns string, Anthropic returns array of content blocks
+ * OpenAI returns string, Anthropic returns array of content blocks.
+ * Thinking/reasoning blocks are wrapped in <think> tags so the frontend ThinkBox renders them.
  */
 function extractTextContent(
-  content: string | Array<{ type?: string; text?: string }> | null | undefined,
+  content: string | Array<{ type?: string; text?: string; thinking?: string; reasoning?: string }> | null | undefined,
 ): string {
   if (!content) return '';
 
@@ -83,13 +84,23 @@ function extractTextContent(
   if (Array.isArray(content)) {
     let text = '';
     for (const block of content) {
+      if (typeof block !== 'object' || block === null) continue;
+
       if (
-        typeof block === 'object' &&
-        block !== null &&
         (block.type === 'text' || block.type === 'text_delta') &&
         block.text
       ) {
+        // Regular text output
         text += block.text;
+      } else if (
+        (block.type === 'thinking' || block.type === 'thinking_delta') &&
+        block.thinking
+      ) {
+        // Anthropic extended thinking blocks — wrap so ThinkBox renders them
+        text += `<think>${block.thinking}</think>`;
+      } else if (block.type === 'reasoning' && block.reasoning) {
+        // LangChain normalized reasoning block — wrap so ThinkBox renders them
+        text += `<think>${block.reasoning}</think>`;
       }
     }
     return text;

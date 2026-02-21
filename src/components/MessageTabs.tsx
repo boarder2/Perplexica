@@ -1,4 +1,3 @@
- 
 'use client';
 
 import { getSuggestions } from '@/lib/actions';
@@ -137,7 +136,7 @@ const MessageTabs = ({
     const regex = /\[(\d+)\]/g;
     let processedMessage = message.content;
 
-    if (message.role === 'assistant' && message.content.includes('<think>')) {
+    if (message.role === 'assistant' && processedMessage.includes('<think>')) {
       const openThinkTag = processedMessage.match(/<think>/g)?.length || 0;
       const closeThinkTag = processedMessage.match(/<\/think>/g)?.length || 0;
 

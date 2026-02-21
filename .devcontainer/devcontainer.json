@@ -37,5 +37,9 @@
         "bradlc.vscode-tailwindcss"
       ]
     }
+  },
+  "remoteEnv": {
+    "LANGSMITH_ENDPOINT": "${localEnv:LANGSMITH_ENDPOINT}",
+    "LANGSMITH_API_KEY": "${localEnv:LANGSMITH_API_KEY}"
   }
 }
