@@ -284,7 +284,24 @@ const Chat = ({
               modelStats={modelStats}
               gatheringSources={gatheringSources}
               actionMessageId={currentMessageId}
-              imageCapable={imageCapable}
+              editInputProps={{
+                fileIds,
+                setFileIds,
+                files,
+                setFiles,
+                focusMode,
+                setFocusMode,
+                systemPromptIds,
+                setSystemPromptIds,
+                sendLocation,
+                setSendLocation,
+                sendPersonalization,
+                setSendPersonalization,
+                personalizationLocation,
+                personalizationAbout,
+                refreshPersonalization,
+                imageCapable,
+              }}
             />
             {!isLast && msg.role === 'assistant' && (
               <div className="h-px w-full bg-surface-2" />

@@ -1,7 +1,8 @@
 import { cn } from '@/lib/utils';
-import { Check, Pencil, X } from 'lucide-react';
+import { Pencil } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import { ImageAttachment, Message } from './ChatWindow';
+import { File, ImageAttachment, Message } from './ChatWindow';
+import MessageInput from './MessageInput';
 import MessageTabs from './MessageTabs';
 import { Document } from '@langchain/core/documents';
 
@@ -19,7 +20,7 @@ const MessageBox = ({
   modelStats,
   gatheringSources,
   actionMessageId,
-  imageCapable = false,
+  editInputProps,
 }: {
   message: Message;
   messageIndex: number;
@@ -40,7 +41,6 @@ const MessageBox = ({
     content: string,
     images?: ImageAttachment[],
   ) => void;
-  imageCapable?: boolean;
   onThinkBoxToggle: (
     messageId: string,
     thinkBoxId: string,
@@ -74,12 +74,30 @@ const MessageBox = ({
     sources: Document[];
   }>;
   actionMessageId?: string;
+  editInputProps: {
+    fileIds: string[];
+    setFileIds: (fileIds: string[]) => void;
+    files: File[];
+    setFiles: (files: File[]) => void;
+    focusMode: string;
+    setFocusMode: (mode: string) => void;
+    systemPromptIds: string[];
+    setSystemPromptIds: (ids: string[]) => void;
+    sendLocation: boolean;
+    setSendLocation: (value: boolean) => void;
+    sendPersonalization: boolean;
+    setSendPersonalization: (value: boolean) => void;
+    personalizationLocation?: string;
+    personalizationAbout?: string;
+    refreshPersonalization?: () => void;
+    imageCapable?: boolean;
+  };
 }) => {
   // Local state for editing functionality
   const [isEditing, setIsEditing] = useState(false);
-  const [editedContent, setEditedContent] = useState('');
-  const [editImages, setEditImages] = useState<ImageAttachment[]>([]);
-  const [isUploadingEditImage, setIsUploadingEditImage] = useState(false);
+  const [editPendingImages, setEditPendingImages] = useState<ImageAttachment[]>(
+    [],
+  );
   // State for truncation toggle of long user prompts
   const [isExpanded, setIsExpanded] = useState(false);
   const [isOverflowing, setIsOverflowing] = useState(false);
@@ -106,60 +124,23 @@ const MessageBox = ({
 
   // Initialize editing
   const startEditMessage = () => {
+    if (loading) return;
     setIsEditing(true);
-    setEditedContent(message.content);
-    setEditImages(message.images ? [...message.images] : []);
+    setEditPendingImages(message.images ? [...message.images] : []);
   };
 
   // Cancel editing
   const cancelEditMessage = () => {
     setIsEditing(false);
-    setEditedContent('');
-    setEditImages([]);
+    setEditPendingImages([]);
   };
 
-  // Save edits
-  const saveEditMessage = () => {
-    handleEditMessage(message.messageId, editedContent, editImages);
+  // Submit edit via the reused MessageInput component
+  const handleEditSubmit = (msg: string) => {
+    handleEditMessage(message.messageId, msg, editPendingImages);
     setIsEditing(false);
   };
 
-  const uploadEditImageFiles = async (imageFiles: globalThis.File[]) => {
-    if (imageFiles.length === 0) return;
-    setIsUploadingEditImage(true);
-    const formData = new FormData();
-    imageFiles.forEach((f) => formData.append('images', f));
-    try {
-      const res = await fetch('/api/uploads/images', {
-        method: 'POST',
-        body: formData,
-      });
-      const data = await res.json();
-      if (res.ok && data.images) {
-        setEditImages((prev) => [...prev, ...data.images]);
-      }
-    } catch (err) {
-      console.error('Image upload failed:', err);
-    }
-    setIsUploadingEditImage(false);
-  };
-
-  const handleEditPaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
-    if (!imageCapable) return;
-    const items = e.clipboardData?.items;
-    if (!items) return;
-    const imageFiles: globalThis.File[] = [];
-    for (let i = 0; i < items.length; i++) {
-      if (items[i].type.startsWith('image/')) {
-        const file = items[i].getAsFile();
-        if (file) imageFiles.push(file);
-      }
-    }
-    if (imageFiles.length > 0) {
-      e.preventDefault();
-      uploadEditImageFiles(imageFiles);
-    }
-  };
   return (
     <div>
       {message.role === 'user' && (
@@ -172,66 +153,16 @@ const MessageBox = ({
         >
           {isEditing ? (
             <div className="w-full">
-              <textarea
-                className="w-full p-3 text-lg bg-surface rounded-lg transition duration-200 min-h-[120px] font-medium text-fg placeholder:text-fg/40 border border-surface-2 focus:outline-none focus:ring-2 focus:ring-accent/40"
-                value={editedContent}
-                onChange={(e) => setEditedContent(e.target.value)}
-                onPaste={handleEditPaste}
-                placeholder="Edit your message..."
-                autoFocus
+              <MessageInput
+                {...editInputProps}
+                sendMessage={handleEditSubmit}
+                loading={false}
+                firstMessage={false}
+                pendingImages={editPendingImages}
+                setPendingImages={setEditPendingImages}
+                initialMessage={message.content}
+                onCancelEdit={cancelEditMessage}
               />
-              {(editImages.length > 0 || isUploadingEditImage) && (
-                <div className="flex flex-row gap-2 mt-2 flex-wrap">
-                  {editImages.map((img) => (
-                    <div
-                      key={img.imageId}
-                      className="relative flex-shrink-0 group/thumb"
-                    >
-                      <img
-                        src={`/api/uploads/images/${img.imageId}`}
-                        alt={img.fileName}
-                        className="h-20 w-20 object-cover rounded-lg border border-surface-2"
-                      />
-                      <button
-                        type="button"
-                        className="absolute -top-1.5 -right-1.5 bg-surface border border-surface-2 rounded-full p-0.5 opacity-0 group-hover/thumb:opacity-100 transition-opacity"
-                        onClick={() =>
-                          setEditImages(
-                            editImages.filter((i) => i.imageId !== img.imageId),
-                          )
-                        }
-                        aria-label={`Remove ${img.fileName}`}
-                      >
-                        <X size={12} />
-                      </button>
-                    </div>
-                  ))}
-                  {isUploadingEditImage && (
-                    <div className="h-20 w-20 flex-shrink-0 flex items-center justify-center rounded-lg border border-surface-2 bg-surface-2/50">
-                      <div className="w-5 h-5 border-2 border-fg/30 border-t-fg animate-spin rounded-full" />
-                    </div>
-                  )}
-                </div>
-              )}
-              <div className="flex flex-row space-x-2 mt-3 justify-end">
-                <button
-                  onClick={cancelEditMessage}
-                  className="p-2 rounded-full bg-surface hover:bg-surface-2 border border-surface-2 transition duration-200 text-fg/80"
-                  aria-label="Cancel"
-                  title="Cancel"
-                >
-                  <X size={18} />
-                </button>
-                <button
-                  onClick={saveEditMessage}
-                  className="p-2 rounded-full bg-accent hover:bg-accent-700 transition duration-200 text-white disabled:opacity-50 disabled:cursor-not-allowed"
-                  aria-label="Save changes"
-                  title="Save changes"
-                  disabled={!editedContent.trim() && editImages.length === 0}
-                >
-                  <Check size={18} />
-                </button>
-              </div>
             </div>
           ) : (
             <>
@@ -286,7 +217,13 @@ const MessageBox = ({
                 </div>
                 <button
                   onClick={startEditMessage}
-                  className="ml-3 p-2 rounded-xl bg-surface hover:bg-surface-2 border border-surface-2 flex-shrink-0"
+                  disabled={loading}
+                  className={cn(
+                    'ml-3 p-2 rounded-xl border border-surface-2 flex-shrink-0',
+                    loading
+                      ? 'opacity-40 cursor-not-allowed bg-surface'
+                      : 'bg-surface hover:bg-surface-2',
+                  )}
                   aria-label="Edit message"
                   title="Edit message"
                 >

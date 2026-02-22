@@ -31,6 +31,8 @@ const MessageInput = ({
   pendingImages,
   setPendingImages,
   imageCapable = false,
+  initialMessage,
+  onCancelEdit,
 }: {
   sendMessage: (
     message: string,
@@ -60,8 +62,10 @@ const MessageInput = ({
   pendingImages: ImageAttachment[];
   setPendingImages: (images: ImageAttachment[]) => void;
   imageCapable?: boolean;
+  initialMessage?: string;
+  onCancelEdit?: () => void;
 }) => {
-  const [message, setMessage] = useState('');
+  const [message, setMessage] = useState(initialMessage || '');
   const [isUploadingImage, setIsUploadingImage] = useState(false);
 
   const uploadImageFiles = async (imageFiles: globalThis.File[]) => {
@@ -172,6 +176,10 @@ const MessageInput = ({
           e.preventDefault();
           handleSubmitMessage();
         }
+        if (e.key === 'Escape' && onCancelEdit) {
+          e.preventDefault();
+          onCancelEdit();
+        }
       }}
       className="w-full"
     >
@@ -270,19 +278,31 @@ const MessageInput = ({
                 </span>
               </button>
             ) : (
-              <button
-                disabled={
-                  message.trim().length === 0 && pendingImages.length === 0
-                }
-                className="bg-accent text-white disabled:text-white/50 disabled:bg-accent/20 hover:bg-accent-700 transition duration-100 rounded-full p-2"
-                type="submit"
-              >
-                {firstMessage ? (
-                  <ArrowRight size={17} />
-                ) : (
-                  <ArrowUp size={17} />
+              <>
+                {onCancelEdit && (
+                  <button
+                    type="button"
+                    onClick={onCancelEdit}
+                    className="p-2 rounded-full border border-surface-2 bg-surface hover:bg-surface-2 transition duration-200 text-fg/80"
+                    aria-label="Cancel editing"
+                  >
+                    <X size={17} />
+                  </button>
                 )}
-              </button>
+                <button
+                  disabled={
+                    message.trim().length === 0 && pendingImages.length === 0
+                  }
+                  className="bg-accent text-white disabled:text-white/50 disabled:bg-accent/20 hover:bg-accent-700 transition duration-100 rounded-full p-2"
+                  type="submit"
+                >
+                  {firstMessage ? (
+                    <ArrowRight size={17} />
+                  ) : (
+                    <ArrowUp size={17} />
+                  )}
+                </button>
+              </>
             )}
           </div>
         </div>
