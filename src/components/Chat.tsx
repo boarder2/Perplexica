@@ -1,7 +1,7 @@
 'use client';
 
 import { Fragment, useEffect, useRef, useState } from 'react';
-import { File, Message } from './ChatWindow';
+import { File, ImageAttachment, Message } from './ChatWindow';
 import MessageBox from './MessageBox';
 import MessageInput from './MessageInput';
 import TodoWidget, { TodoItemData } from './TodoWidget';
@@ -34,6 +34,8 @@ const Chat = ({
   personalizationAbout,
   refreshPersonalization,
   todoItems = [],
+  pendingImages,
+  setPendingImages,
 }: {
   messages: Message[];
   sendMessage: (
@@ -95,6 +97,8 @@ const Chat = ({
   personalizationAbout?: string;
   refreshPersonalization?: () => void;
   todoItems?: TodoItemData[];
+  pendingImages: ImageAttachment[];
+  setPendingImages: (images: ImageAttachment[]) => void;
 }) => {
   const [isAtBottom, setIsAtBottom] = useState(true);
   const [manuallyScrolledUp, setManuallyScrolledUp] = useState(false);
@@ -333,6 +337,8 @@ const Chat = ({
           personalizationLocation={personalizationLocation}
           personalizationAbout={personalizationAbout}
           refreshPersonalization={refreshPersonalization}
+          pendingImages={pendingImages}
+          setPendingImages={setPendingImages}
         />
       </div>
       <div ref={messageEnd} className="h-0" />

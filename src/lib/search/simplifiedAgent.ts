@@ -18,6 +18,7 @@ import { encodeHtmlAttribute } from '@/lib/utils/html';
 import { isSoftStop } from '@/lib/utils/runControl';
 import { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import { BaseMessage, HumanMessage } from '@langchain/core/messages';
+import { buildMultimodalHumanMessage } from '@/lib/utils/images';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
 import { RunnableConfig, RunnableSequence } from '@langchain/core/runnables';
 import { createAgent } from 'langchain';
@@ -73,7 +74,16 @@ function normalizeUsageMetadata(usageData: Record<string, number>): {
  * Thinking/reasoning blocks are wrapped in <think> tags so the frontend ThinkBox renders them.
  */
 function extractTextContent(
-  content: string | Array<{ type?: string; text?: string; thinking?: string; reasoning?: string }> | null | undefined,
+  content:
+    | string
+    | Array<{
+        type?: string;
+        text?: string;
+        thinking?: string;
+        reasoning?: string;
+      }>
+    | null
+    | undefined,
 ): string {
   if (!content) return '';
 
@@ -158,8 +168,16 @@ export class SimplifiedAgent {
    * Emit model usage statistics to the client
    */
   private emitModelStats(
-    usageChat: { input_tokens: number; output_tokens: number; total_tokens: number },
-    usageSystem: { input_tokens: number; output_tokens: number; total_tokens: number },
+    usageChat: {
+      input_tokens: number;
+      output_tokens: number;
+      total_tokens: number;
+    },
+    usageSystem: {
+      input_tokens: number;
+      output_tokens: number;
+      total_tokens: number;
+    },
   ) {
     this.emitter.emit(
       'stats',
@@ -347,6 +365,7 @@ export class SimplifiedAgent {
     focusMode: string = 'webSearch',
     customTools?: typeof allAgentTools,
     customSystemPrompt?: string,
+    messageImageIds?: string[],
   ): Promise<void> {
     // Declared outside try so the catch block can clean it up
     let toolLlmUsageHandler: ((data: string) => void) | null = null;
@@ -361,9 +380,14 @@ export class SimplifiedAgent {
         this.emitResponse(''); // Empty response, to give the UI a message to display.
       }, 100);
 
+      const humanMsg =
+        messageImageIds && messageImageIds.length > 0
+          ? buildMultimodalHumanMessage(query, messageImageIds)
+          : new HumanMessage(query);
+
       const messagesHistory = [
         ...removeThinkingBlocksFromMessages(history),
-        new HumanMessage(query),
+        humanMsg,
       ];
       // Detect Firefox AI prompt pattern
       const trimmed = query.trim();
@@ -383,7 +407,7 @@ export class SimplifiedAgent {
       const deepResearchRunIds = new Set<string>();
       // run_id of each 'tools' node chain start that belongs to the parent graph (not a child)
       const parentToolsNodeRunIds = new Set<string>();
-      // run_id of each LLM call that belongs to THIS parent agent's 'agent' node
+      // run_id of each LLM call that belongs to THIS parent agent's 'model_request' node
       const activeAgentLlmRunIds = new Set<string>();
 
       // Initialize agent with the provided focus mode and file context
@@ -729,11 +753,15 @@ export class SimplifiedAgent {
           // Step 2: Track deep_research tool execution run IDs.
           // Any on_chat_model_start / on_chain_start with a parent_id in this set
           // belongs to a child SimplifiedAgent, not the parent graph.
-          if (event.event === 'on_tool_start' && event.name === 'deep_research') {
+          if (
+            event.event === 'on_tool_start' &&
+            event.name === 'deep_research'
+          ) {
             deepResearchRunIds.add(event.run_id);
           }
           if (
-            (event.event === 'on_tool_end' || event.event === 'on_tool_error') &&
+            (event.event === 'on_tool_end' ||
+              event.event === 'on_tool_error') &&
             event.name === 'deep_research'
           ) {
             deepResearchRunIds.delete(event.run_id);
@@ -752,7 +780,8 @@ export class SimplifiedAgent {
             parentToolsNodeRunIds.add(event.run_id);
           }
           if (
-            (event.event === 'on_chain_end' || event.event === 'on_chain_error') &&
+            (event.event === 'on_chain_end' ||
+              event.event === 'on_chain_error') &&
             event.metadata?.langgraph_node === 'tools'
           ) {
             parentToolsNodeRunIds.delete(event.run_id);
@@ -763,7 +792,7 @@ export class SimplifiedAgent {
           // to avoid a use-after-delete race on the same event.
           if (
             event.event === 'on_chat_model_start' &&
-            event.metadata?.langgraph_node === 'agent' &&
+            event.metadata?.langgraph_node === 'model_request' &&
             !(event as unknown as { parent_ids?: string[] }).parent_ids?.some(
               (id: string) => deepResearchRunIds.has(id),
             )
@@ -817,21 +846,20 @@ export class SimplifiedAgent {
           }
 
           // Handle streaming tool calls (for thought messages)
-          // Only count events from the 'agent' node (createAgent's LLM node).
+          // Only count events from the 'model_request' node (createAgent's LLM node).
           // In LangChain/LangGraph v1.x, AsyncLocalStorage propagates parent callbacks into
           // tool executions, so system model llm.invoke() calls inside tools also fire
           // on_chat_model_end in this stream. Those events have langgraph_node === 'tools'
           // and must be excluded — their tokens are reported via tool_llm_usage instead.
           // Additionally guard by activeAgentLlmRunIds to exclude child SimplifiedAgent
-          // LLM calls (which also have langgraph_node === 'agent' from the child's graph).
+          // LLM calls (which also have langgraph_node === 'model_request' from the child's graph).
           if (
             event.event === 'on_chat_model_end' &&
             event.data.output &&
-            event.metadata?.langgraph_node === 'agent' &&
+            event.metadata?.langgraph_node === 'model_request' &&
             activeAgentLlmRunIds.has(event.run_id)
           ) {
             const output = event.data.output;
-            console.log(`SimplifiedAgent: on_chat_model_end`, event);
 
             if (output.usage_metadata) {
               const normalized = normalizeUsageMetadata(output.usage_metadata);
@@ -871,7 +899,7 @@ export class SimplifiedAgent {
           if (
             event.event === 'on_llm_end' &&
             event.data.output &&
-            event.metadata?.langgraph_node === 'agent' &&
+            event.metadata?.langgraph_node === 'model_request' &&
             activeAgentLlmRunIds.has(event.run_id)
           ) {
             const output = event.data.output;
@@ -972,7 +1000,7 @@ ${url ? `<url>${url}</url>` : ''}
 
           const eventStream2 = chain.streamEvents(
             { query },
-            { version: 'v2', /* ...getLangfuseCallbacks() */ },
+            { version: 'v2' /* ...getLangfuseCallbacks() */ },
           );
 
           this.emitResponse(

@@ -56,6 +56,7 @@ export class AgentSearch {
     query: string,
     history: BaseMessage[] = [],
     fileIds: string[] = [],
+    messageImageIds?: string[],
   ) {
     console.log('AgentSearch: Running SimplifiedAgent with deep_research tool');
 
@@ -64,6 +65,9 @@ export class AgentSearch {
       history,
       fileIds,
       this.agentMode,
+      undefined,
+      undefined,
+      messageImageIds,
     );
   }
 }

@@ -1,5 +1,5 @@
 import { Settings } from 'lucide-react';
-import { File } from './ChatWindow';
+import { File, ImageAttachment } from './ChatWindow';
 import Link from 'next/link';
 import MessageInput from './MessageInput';
 
@@ -20,6 +20,8 @@ const EmptyChat = ({
   personalizationLocation,
   personalizationAbout,
   refreshPersonalization,
+  pendingImages,
+  setPendingImages,
 }: {
   sendMessage: (message: string) => void;
   focusMode: string;
@@ -37,6 +39,8 @@ const EmptyChat = ({
   personalizationLocation?: string;
   personalizationAbout?: string;
   refreshPersonalization?: () => void;
+  pendingImages: ImageAttachment[];
+  setPendingImages: (images: ImageAttachment[]) => void;
 }) => {
   return (
     <div className="relative">
@@ -67,6 +71,8 @@ const EmptyChat = ({
             personalizationLocation={personalizationLocation}
             personalizationAbout={personalizationAbout}
             refreshPersonalization={refreshPersonalization}
+            pendingImages={pendingImages}
+            setPendingImages={setPendingImages}
           />
         </div>
       </div>

@@ -190,6 +190,18 @@ const MessageBox = ({
                       {isExpanded ? 'Show less' : 'Show more'}
                     </button>
                   )}
+                  {message.images && message.images.length > 0 && (
+                    <div className="flex flex-row gap-2 mt-3 flex-wrap">
+                      {message.images.map((img) => (
+                        <img
+                          key={img.imageId}
+                          src={`/api/uploads/images/${img.imageId}`}
+                          alt={img.fileName}
+                          className="max-h-40 max-w-[200px] object-cover rounded-lg border border-surface-2"
+                        />
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <button
                   onClick={startEditMessage}

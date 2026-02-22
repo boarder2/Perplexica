@@ -55,12 +55,19 @@ export type Message = {
   expandedThinkBoxes?: Set<string>;
   usedLocation?: boolean;
   usedPersonalization?: boolean;
+  images?: ImageAttachment[];
 };
 
 export interface File {
   fileName: string;
   fileExtension: string;
   fileId: string;
+}
+
+export interface ImageAttachment {
+  imageId: string;
+  fileName: string;
+  mimeType: string;
 }
 
 interface ChatModelProvider {
@@ -72,7 +79,6 @@ interface EmbeddingModelProvider {
   name: string;
   provider: string;
 }
-
 
 const SEND_LOCATION_KEY = 'personalization.sendLocationEnabled';
 const SEND_PROFILE_KEY = 'personalization.sendProfileEnabled';
@@ -237,7 +243,7 @@ const loadMessages = async (
   chatId: string,
   setMessages: (messages: Message[]) => void,
   setIsMessagesLoaded: (loaded: boolean) => void,
-  setChatHistory: (history: [string, string][]) => void,
+  setChatHistory: (history: [string, string, string[]?][]) => void,
   setFocusMode: (mode: string) => void,
   setNotFound: (notFound: boolean) => void,
   setFiles: (files: File[]) => void,
@@ -268,8 +274,12 @@ const loadMessages = async (
   setMessages(messages);
 
   const history = messages.map((msg) => {
-    return [msg.role, msg.content];
-  }) as [string, string][];
+    const entry: [string, string, string[]?] = [msg.role, msg.content];
+    if (msg.role === 'user' && msg.images && msg.images.length > 0) {
+      entry[2] = msg.images.map((img: ImageAttachment) => img.imageId);
+    }
+    return entry;
+  }) as [string, string, string[]?][];
 
   console.debug(new Date(), 'app:messages_loaded');
 
@@ -324,7 +334,6 @@ const ChatWindow = ({ id }: { id?: string }) => {
       setIsConfigReady,
       setHasError,
     );
-     
   }, []);
 
   const [loading, setLoading] = useState(false);
@@ -337,7 +346,9 @@ const ChatWindow = ({ id }: { id?: string }) => {
   } | null>(null);
   const [liveModelStats, setLiveModelStats] = useState<ModelStats | null>(null);
 
-  const [chatHistory, setChatHistory] = useState<[string, string][]>([]);
+  const [chatHistory, setChatHistory] = useState<[string, string, string[]?][]>(
+    [],
+  );
   const [messages, setMessages] = useState<Message[]>([]);
 
   const [todoItems, setTodoItems] = useState<
@@ -346,6 +357,8 @@ const ChatWindow = ({ id }: { id?: string }) => {
 
   const [files, setFiles] = useState<File[]>([]);
   const [fileIds, setFileIds] = useState<string[]>([]);
+
+  const [pendingImages, setPendingImages] = useState<ImageAttachment[]>([]);
 
   const [focusMode, setFocusMode] = useState('webSearch');
   const [systemPromptIds, setSystemPromptIds] = useState<string[]>([]);
@@ -542,6 +555,10 @@ const ChatWindow = ({ id }: { id?: string }) => {
     const messageId =
       options?.messageId ?? crypto.randomBytes(7).toString('hex');
 
+    const messageImages =
+      pendingImages.length > 0 ? [...pendingImages] : undefined;
+    const messageImageIds = messageImages?.map((img) => img.imageId);
+
     setMessages((prevMessages) => [
       ...prevMessages,
       {
@@ -550,8 +567,11 @@ const ChatWindow = ({ id }: { id?: string }) => {
         chatId: chatId!,
         role: 'user',
         createdAt: new Date(),
+        ...(messageImages && { images: messageImages }),
       },
     ]);
+
+    setPendingImages([]);
 
     // If this is a new chat (no chatId in URL), replace the URL to include the new chatId
     if (messages.length <= 1) {
@@ -1129,7 +1149,13 @@ const ChatWindow = ({ id }: { id?: string }) => {
 
         setChatHistory((prevHistory) => [
           ...prevHistory,
-          ['human', message],
+          messageImageIds?.length
+            ? (['human', message, messageImageIds] as [
+                string,
+                string,
+                string[],
+              ])
+            : (['human', message] as [string, string]),
           ['assistant', recievedMessage],
         ]);
 
@@ -1210,6 +1236,11 @@ const ChatWindow = ({ id }: { id?: string }) => {
       },
       selectedSystemPromptIds: systemPromptIds || [],
     };
+
+    if (messageImageIds?.length) {
+      payload.messageImageIds = messageImageIds;
+      payload.messageImages = messageImages;
+    }
 
     if (userLocation) {
       payload.userLocation = userLocation;
@@ -1378,6 +1409,8 @@ const ChatWindow = ({ id }: { id?: string }) => {
               personalizationAbout={personalizationAbout}
               refreshPersonalization={refreshPersonalization}
               todoItems={todoItems}
+              pendingImages={pendingImages}
+              setPendingImages={setPendingImages}
             />
           </>
         ) : (
@@ -1398,6 +1431,8 @@ const ChatWindow = ({ id }: { id?: string }) => {
             personalizationLocation={personalizationLocation}
             personalizationAbout={personalizationAbout}
             refreshPersonalization={refreshPersonalization}
+            pendingImages={pendingImages}
+            setPendingImages={setPendingImages}
           />
         )}
       </div>

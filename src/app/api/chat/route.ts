@@ -28,6 +28,7 @@ import {
   clearSoftStop,
 } from '@/lib/utils/runControl';
 import { CachedEmbeddings } from '@/lib/utils/cachedEmbeddings';
+import { buildMultimodalHumanMessage } from '@/lib/utils/images';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -57,7 +58,7 @@ type EmbeddingModel = {
 type Body = {
   message: Message;
   focusMode: string;
-  history: Array<[string, string]>;
+  history: Array<[string, string, string[]?]>;
   files: Array<string>;
   chatModel: ChatModel;
   systemModel?: SystemModel; // optional; defaults to chatModel
@@ -65,6 +66,12 @@ type Body = {
   selectedSystemPromptIds: string[]; // legacy name; treated as persona prompt IDs
   userLocation?: string;
   userProfile?: string;
+  messageImageIds?: string[];
+  messageImages?: Array<{
+    imageId: string;
+    fileName: string;
+    mimeType: string;
+  }>;
 };
 
 type TokenUsage = {
@@ -432,6 +439,11 @@ const handleHistorySave = async (
   humanMessageId: string,
   focusMode: string,
   files: string[],
+  messageImages?: Array<{
+    imageId: string;
+    fileName: string;
+    mimeType: string;
+  }>,
 ) => {
   const chat = await db.query.chats.findFirst({
     where: eq(chats.id, message.chatId),
@@ -464,6 +476,8 @@ const handleHistorySave = async (
         role: 'user',
         metadata: JSON.stringify({
           createdAt: new Date(),
+          ...(messageImages &&
+            messageImages.length > 0 && { images: messageImages }),
         }),
       })
       .execute();
@@ -474,6 +488,8 @@ const handleHistorySave = async (
         content: message.content,
         metadata: JSON.stringify({
           createdAt: new Date(),
+          ...(messageImages &&
+            messageImages.length > 0 && { images: messageImages }),
         }),
       })
       .where(eq(messagesSchema.messageId, humanMessageId))
@@ -496,7 +512,10 @@ export const POST = async (req: Request) => {
     const body = (await req.json()) as Body;
     const { message, selectedSystemPromptIds } = body;
 
-    if (message.content === '') {
+    if (
+      message.content === '' &&
+      !(body.messageImageIds && body.messageImageIds.length > 0)
+    ) {
       return Response.json(
         {
           message: 'Please provide a message to process',
@@ -602,6 +621,10 @@ export const POST = async (req: Request) => {
 
     const history: BaseMessage[] = body.history.map((msg) => {
       if (msg[0] === 'human') {
+        // If this history entry has image IDs, build a multimodal message
+        if (msg[2] && msg[2].length > 0) {
+          return buildMultimodalHumanMessage(msg[1], msg[2]);
+        }
         return new HumanMessage({
           content: msg[1],
         });
@@ -688,6 +711,7 @@ export const POST = async (req: Request) => {
         location: body.userLocation,
         profile: body.userProfile,
       },
+      body.messageImageIds,
     );
 
     handleEmitterEvents(
@@ -703,7 +727,13 @@ export const POST = async (req: Request) => {
       body.userProfile ? body.userProfile.length > 0 : false,
     );
 
-    handleHistorySave(message, humanMessageId, body.focusMode, body.files);
+    handleHistorySave(
+      message,
+      humanMessageId,
+      body.focusMode,
+      body.files,
+      body.messageImages,
+    );
 
     return new Response(responseStream.readable, {
       headers: {

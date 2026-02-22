@@ -7,57 +7,106 @@ import {
 } from '@headlessui/react';
 import { File, LoaderCircle, Paperclip, Plus, Trash } from 'lucide-react';
 import { Fragment, useRef, useState } from 'react';
-import { File as FileType } from '../ChatWindow';
+import { File as FileType, ImageAttachment } from '../ChatWindow';
+
+const IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'gif', 'webp'];
 
 const Attach = ({
   fileIds,
   setFileIds,
   files,
   setFiles,
+  pendingImages,
+  setPendingImages,
 }: {
   fileIds: string[];
   setFileIds: (fileIds: string[]) => void;
   files: FileType[];
   setFiles: (files: FileType[]) => void;
+  pendingImages: ImageAttachment[];
+  setPendingImages: (images: ImageAttachment[]) => void;
 }) => {
   const [loading, setLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files?.length) return;
     setLoading(true);
-    const data = new FormData();
 
-    for (let i = 0; i < e.target.files!.length; i++) {
-      data.append('files', e.target.files![i]);
+    const imageFiles: globalThis.File[] = [];
+    const docFiles: globalThis.File[] = [];
+
+    for (let i = 0; i < e.target.files.length; i++) {
+      const file = e.target.files[i];
+      const ext = file.name.split('.').pop()?.toLowerCase() || '';
+      if (IMAGE_EXTENSIONS.includes(ext)) {
+        imageFiles.push(file);
+      } else {
+        docFiles.push(file);
+      }
     }
 
-    const embeddingModelProvider = localStorage.getItem(
-      'embeddingModelProvider',
-    );
-    const embeddingModel = localStorage.getItem('embeddingModel');
-    const chatModelProvider = localStorage.getItem('chatModelProvider');
-    const chatModel = localStorage.getItem('chatModel');
-    const ollamaContextWindow =
-      localStorage.getItem('ollamaContextWindow') || '2048';
-
-    data.append('embedding_model_provider', embeddingModelProvider!);
-    data.append('embedding_model', embeddingModel!);
-    data.append('chat_model_provider', chatModelProvider!);
-    data.append('chat_model', chatModel!);
-    if (chatModelProvider === 'ollama') {
-      data.append('ollama_context_window', ollamaContextWindow);
+    // Upload images
+    if (imageFiles.length > 0) {
+      const imgData = new FormData();
+      imageFiles.forEach((f) => imgData.append('images', f));
+      try {
+        const res = await fetch('/api/uploads/images', {
+          method: 'POST',
+          body: imgData,
+        });
+        const resData = await res.json();
+        if (res.ok && resData.images) {
+          setPendingImages([...pendingImages, ...resData.images]);
+        }
+      } catch (err) {
+        console.error('Image upload failed:', err);
+      }
     }
 
-    const res = await fetch(`/api/uploads`, {
-      method: 'POST',
-      body: data,
-    });
+    // Upload documents (existing behavior)
+    if (docFiles.length > 0) {
+      const data = new FormData();
+      docFiles.forEach((f) => data.append('files', f));
 
-    const resData = await res.json();
+      const embeddingModelProvider = localStorage.getItem(
+        'embeddingModelProvider',
+      );
+      const embeddingModel = localStorage.getItem('embeddingModel');
+      const chatModelProvider = localStorage.getItem('chatModelProvider');
+      const chatModel = localStorage.getItem('chatModel');
+      const ollamaContextWindow =
+        localStorage.getItem('ollamaContextWindow') || '2048';
 
-    setFiles([...files, ...resData.files]);
-    setFileIds([...fileIds, ...resData.files.map((file: Record<string, string>) => file.fileId)]);
+      data.append('embedding_model_provider', embeddingModelProvider!);
+      data.append('embedding_model', embeddingModel!);
+      data.append('chat_model_provider', chatModelProvider!);
+      data.append('chat_model', chatModel!);
+      if (chatModelProvider === 'ollama') {
+        data.append('ollama_context_window', ollamaContextWindow);
+      }
+
+      try {
+        const res = await fetch('/api/uploads', {
+          method: 'POST',
+          body: data,
+        });
+        const resData = await res.json();
+        if (res.ok && resData.files) {
+          setFiles([...files, ...resData.files]);
+          setFileIds([
+            ...fileIds,
+            ...resData.files.map((file: Record<string, string>) => file.fileId),
+          ]);
+        }
+      } catch (err) {
+        console.error('Document upload failed:', err);
+      }
+    }
+
     setLoading(false);
+    // Reset the input so the same file can be re-selected
+    e.target.value = '';
   };
 
   return loading ? (
@@ -122,7 +171,7 @@ const Attach = ({
                       type="file"
                       onChange={handleChange}
                       ref={fileInputRef}
-                      accept=".pdf,.docx,.txt"
+                      accept=".pdf,.docx,.txt,.png,.jpg,.jpeg,.gif,.webp"
                       multiple
                       hidden
                     />
@@ -177,7 +226,7 @@ const Attach = ({
           type="file"
           onChange={handleChange}
           ref={fileInputRef}
-          accept=".pdf,.docx,.txt"
+          accept=".pdf,.docx,.txt,.png,.jpg,.jpeg,.gif,.webp"
           multiple
           hidden
         />

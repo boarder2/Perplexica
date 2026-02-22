@@ -48,6 +48,7 @@ interface ChatRequestBody {
   selectedSystemPromptIds?: string[]; // legacy name; treated as persona prompt IDs
   userLocation?: string;
   userProfile?: string;
+  messageImageIds?: string[];
 }
 
 export const POST = async (req: Request) => {
@@ -206,6 +207,7 @@ export const POST = async (req: Request) => {
         location: body.userLocation,
         profile: body.userProfile,
       },
+      body.messageImageIds,
     );
 
     if (!body.stream) {

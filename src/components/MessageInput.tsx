@@ -1,7 +1,7 @@
-import { ArrowRight, ArrowUp, Square } from 'lucide-react';
+import { ArrowRight, ArrowUp, Square, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import TextareaAutosize from 'react-textarea-autosize';
-import { File } from './ChatWindow';
+import { File, ImageAttachment } from './ChatWindow';
 import Attach from './MessageInputActions/Attach';
 import Focus from './MessageInputActions/Focus';
 import ModelConfigurator from './MessageInputActions/ModelConfigurator';
@@ -28,6 +28,8 @@ const MessageInput = ({
   personalizationLocation,
   personalizationAbout,
   refreshPersonalization,
+  pendingImages,
+  setPendingImages,
 }: {
   sendMessage: (
     message: string,
@@ -54,8 +56,47 @@ const MessageInput = ({
   personalizationLocation?: string;
   personalizationAbout?: string;
   refreshPersonalization?: () => void;
+  pendingImages: ImageAttachment[];
+  setPendingImages: (images: ImageAttachment[]) => void;
 }) => {
   const [message, setMessage] = useState('');
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+
+  const uploadImageFiles = async (imageFiles: globalThis.File[]) => {
+    if (imageFiles.length === 0) return;
+    setIsUploadingImage(true);
+    const formData = new FormData();
+    imageFiles.forEach((f) => formData.append('images', f));
+    try {
+      const res = await fetch('/api/uploads/images', {
+        method: 'POST',
+        body: formData,
+      });
+      const data = await res.json();
+      if (res.ok && data.images) {
+        setPendingImages([...pendingImages, ...data.images]);
+      }
+    } catch (err) {
+      console.error('Image upload failed:', err);
+    }
+    setIsUploadingImage(false);
+  };
+
+  const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    const imageFiles: globalThis.File[] = [];
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.startsWith('image/')) {
+        const file = items[i].getAsFile();
+        if (file) imageFiles.push(file);
+      }
+    }
+    if (imageFiles.length > 0) {
+      e.preventDefault();
+      uploadImageFiles(imageFiles);
+    }
+  };
 
   useEffect(() => {
     const storedPromptIds = localStorage.getItem('selectedSystemPromptIds');
@@ -109,8 +150,9 @@ const MessageInput = ({
 
   // Function to handle message submission
   const handleSubmitMessage = () => {
-    // Only submit if we have a non-empty message and not currently loading
-    if (loading || message.trim().length === 0) return;
+    // Only submit if we have a non-empty message or images, and not currently loading
+    if (loading || (message.trim().length === 0 && pendingImages.length === 0))
+      return;
 
     sendMessage(message);
     setMessage('');
@@ -131,11 +173,45 @@ const MessageInput = ({
       className="w-full"
     >
       <div className="flex flex-col bg-surface px-3 pt-4 pb-2 rounded-lg w-full border border-surface-2">
+        {(pendingImages.length > 0 || isUploadingImage) && (
+          <div className="flex flex-row gap-2 mb-2 overflow-x-auto pb-1">
+            {pendingImages.map((img) => (
+              <div
+                key={img.imageId}
+                className="relative flex-shrink-0 group/thumb"
+              >
+                <img
+                  src={`/api/uploads/images/${img.imageId}`}
+                  alt={img.fileName}
+                  className="h-20 w-20 object-cover rounded-lg border border-surface-2"
+                />
+                <button
+                  type="button"
+                  className="absolute -top-1.5 -right-1.5 bg-surface border border-surface-2 rounded-full p-0.5 opacity-0 group-hover/thumb:opacity-100 transition-opacity"
+                  onClick={() =>
+                    setPendingImages(
+                      pendingImages.filter((i) => i.imageId !== img.imageId),
+                    )
+                  }
+                  aria-label={`Remove ${img.fileName}`}
+                >
+                  <X size={12} />
+                </button>
+              </div>
+            ))}
+            {isUploadingImage && (
+              <div className="h-20 w-20 flex-shrink-0 flex items-center justify-center rounded-lg border border-surface-2 bg-surface-2/50">
+                <div className="w-5 h-5 border-2 border-fg/30 border-t-fg animate-spin rounded-full" />
+              </div>
+            )}
+          </div>
+        )}
         <div className="flex flex-row space-x-2 mb-2">
           <TextareaAutosize
             ref={inputRef}
             value={message}
             onChange={(e) => setMessage(e.target.value)}
+            onPaste={handlePaste}
             minRows={1}
             className="px-3 py-2 overflow-hidden flex rounded-lg bg-transparent text-sm resize-none w-full max-h-24 lg:max-h-36 xl:max-h-48"
             placeholder={
@@ -154,6 +230,8 @@ const MessageInput = ({
               setFileIds={setFileIds}
               files={files}
               setFiles={setFiles}
+              pendingImages={pendingImages}
+              setPendingImages={setPendingImages}
             />
           </div>
           <div className="flex flex-row items-center space-x-2">
@@ -189,7 +267,9 @@ const MessageInput = ({
               </button>
             ) : (
               <button
-                disabled={message.trim().length === 0}
+                disabled={
+                  message.trim().length === 0 && pendingImages.length === 0
+                }
                 className="bg-accent text-white disabled:text-white/50 disabled:bg-accent/20 hover:bg-accent-700 transition duration-100 rounded-full p-2"
                 type="submit"
               >
