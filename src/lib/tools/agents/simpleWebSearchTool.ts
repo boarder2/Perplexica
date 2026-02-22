@@ -36,7 +36,7 @@ export const simpleWebSearchTool = tool(
     try {
       const { query } = input;
       const currentState = getCurrentTaskInput() as SimplifiedAgentStateType;
-      let currentDocCount = currentState.relevantDocuments.length;
+      let currentDocCount = currentState.relevantDocuments?.length ?? 0;
 
       // Get LLM and embeddings from config
       if (!config?.configurable?.systemLlm) {
@@ -48,10 +48,12 @@ export const simpleWebSearchTool = tool(
 
       const _llm = config.configurable.systemLlm;
       const embeddings: CachedEmbeddings = config.configurable.embeddings;
-      const retrievalSignal: AbortSignal | undefined = (config as unknown as Record<string, Record<string, unknown>>)
-        ?.configurable?.retrievalSignal as AbortSignal | undefined;
-      const messageId: string | undefined = (config as unknown as Record<string, Record<string, unknown>>)?.configurable
-        ?.messageId as string | undefined;
+      const retrievalSignal: AbortSignal | undefined = (
+        config as unknown as Record<string, Record<string, unknown>>
+      )?.configurable?.retrievalSignal as AbortSignal | undefined;
+      const messageId: string | undefined = (
+        config as unknown as Record<string, Record<string, unknown>>
+      )?.configurable?.messageId as string | undefined;
 
       const searchQuery = query;
       console.log(
@@ -66,7 +68,9 @@ export const simpleWebSearchTool = tool(
             messages: [
               new ToolMessage({
                 content: 'Soft-stop set; skipping web search.',
-                tool_call_id: (config as unknown as { toolCall: { id: string } })?.toolCall.id,
+                tool_call_id: (
+                  config as unknown as { toolCall: { id: string } }
+                )?.toolCall.id,
               }),
             ],
           },
@@ -93,7 +97,9 @@ export const simpleWebSearchTool = tool(
             messages: [
               new ToolMessage({
                 content: 'No search results found.',
-                tool_call_id: (config as unknown as { toolCall: { id: string } })?.toolCall.id,
+                tool_call_id: (
+                  config as unknown as { toolCall: { id: string } }
+                )?.toolCall.id,
               }),
             ],
           },
@@ -171,7 +177,8 @@ export const simpleWebSearchTool = tool(
               content: JSON.stringify({
                 document: documents,
               }),
-              tool_call_id: (config as unknown as { toolCall: { id: string } })?.toolCall.id,
+              tool_call_id: (config as unknown as { toolCall: { id: string } })
+                ?.toolCall.id,
             }),
           ],
         },
@@ -182,14 +189,19 @@ export const simpleWebSearchTool = tool(
         error instanceof Error ? error.message : 'Unknown error';
 
       // Treat abort as non-fatal/no-op update
-      if (error instanceof Error && (error.name === 'CanceledError' || error.name === 'AbortError')) {
+      if (
+        error instanceof Error &&
+        (error.name === 'CanceledError' || error.name === 'AbortError')
+      ) {
         return new Command({
           update: {
             relevantDocuments: [],
             messages: [
               new ToolMessage({
                 content: 'Web search aborted by soft-stop.',
-                tool_call_id: (config as unknown as { toolCall: { id: string } })?.toolCall.id,
+                tool_call_id: (
+                  config as unknown as { toolCall: { id: string } }
+                )?.toolCall.id,
               }),
             ],
           },
@@ -203,7 +215,8 @@ export const simpleWebSearchTool = tool(
           messages: [
             new ToolMessage({
               content: 'Error occurred during web search: ' + errorMessage,
-              tool_call_id: (config as unknown as { toolCall: { id: string } })?.toolCall.id,
+              tool_call_id: (config as unknown as { toolCall: { id: string } })
+                ?.toolCall.id,
             }),
           ],
         },

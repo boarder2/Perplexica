@@ -38,11 +38,12 @@ export const imageSearchTool = tool(
       const { query, maxResults = 12 } = input;
 
       const currentState = getCurrentTaskInput() as SimplifiedAgentStateType;
-      let currentDocCount = currentState.relevantDocuments.length;
+      let currentDocCount = currentState.relevantDocuments?.length ?? 0;
 
       console.log(`ImageSearchTool: Searching images for query: "${query}"`);
-      const retrievalSignal: AbortSignal | undefined = (config as unknown as Record<string, Record<string, unknown>>)
-        ?.configurable?.retrievalSignal as AbortSignal | undefined;
+      const retrievalSignal: AbortSignal | undefined = (
+        config as unknown as Record<string, Record<string, unknown>>
+      )?.configurable?.retrievalSignal as AbortSignal | undefined;
 
       const searchResults = await searchSearxng(
         query,
@@ -63,7 +64,9 @@ export const imageSearchTool = tool(
             messages: [
               new ToolMessage({
                 content: 'No image results found.',
-                tool_call_id: (config as unknown as { toolCall: { id: string } })?.toolCall?.id,
+                tool_call_id: (
+                  config as unknown as { toolCall: { id: string } }
+                )?.toolCall?.id,
               }),
             ],
           },
@@ -93,7 +96,8 @@ export const imageSearchTool = tool(
           messages: [
             new ToolMessage({
               content: JSON.stringify({ images }),
-              tool_call_id: (config as unknown as { toolCall: { id: string } })?.toolCall?.id,
+              tool_call_id: (config as unknown as { toolCall: { id: string } })
+                ?.toolCall?.id,
             }),
           ],
         },
@@ -108,7 +112,8 @@ export const imageSearchTool = tool(
           messages: [
             new ToolMessage({
               content: 'Error occurred during image search: ' + errorMessage,
-              tool_call_id: (config as unknown as { toolCall: { id: string } })?.toolCall?.id,
+              tool_call_id: (config as unknown as { toolCall: { id: string } })
+                ?.toolCall?.id,
             }),
           ],
         },

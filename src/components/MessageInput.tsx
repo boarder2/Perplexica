@@ -30,6 +30,7 @@ const MessageInput = ({
   refreshPersonalization,
   pendingImages,
   setPendingImages,
+  imageCapable = false,
 }: {
   sendMessage: (
     message: string,
@@ -58,6 +59,7 @@ const MessageInput = ({
   refreshPersonalization?: () => void;
   pendingImages: ImageAttachment[];
   setPendingImages: (images: ImageAttachment[]) => void;
+  imageCapable?: boolean;
 }) => {
   const [message, setMessage] = useState('');
   const [isUploadingImage, setIsUploadingImage] = useState(false);
@@ -83,6 +85,7 @@ const MessageInput = ({
   };
 
   const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    if (!imageCapable) return;
     const items = e.clipboardData?.items;
     if (!items) return;
     const imageFiles: globalThis.File[] = [];
@@ -232,6 +235,7 @@ const MessageInput = ({
               setFiles={setFiles}
               pendingImages={pendingImages}
               setPendingImages={setPendingImages}
+              imageCapable={imageCapable}
             />
           </div>
           <div className="flex flex-row items-center space-x-2">

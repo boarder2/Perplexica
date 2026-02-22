@@ -11,6 +11,9 @@ import { File as FileType, ImageAttachment } from '../ChatWindow';
 
 const IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'gif', 'webp'];
 
+const IMAGE_ACCEPT = '.png,.jpg,.jpeg,.gif,.webp';
+const DOC_ACCEPT = '.pdf,.docx,.txt';
+
 const Attach = ({
   fileIds,
   setFileIds,
@@ -18,6 +21,7 @@ const Attach = ({
   setFiles,
   pendingImages,
   setPendingImages,
+  imageCapable = false,
 }: {
   fileIds: string[];
   setFileIds: (fileIds: string[]) => void;
@@ -25,6 +29,7 @@ const Attach = ({
   setFiles: (files: FileType[]) => void;
   pendingImages: ImageAttachment[];
   setPendingImages: (images: ImageAttachment[]) => void;
+  imageCapable?: boolean;
 }) => {
   const [loading, setLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -40,7 +45,7 @@ const Attach = ({
       const file = e.target.files[i];
       const ext = file.name.split('.').pop()?.toLowerCase() || '';
       if (IMAGE_EXTENSIONS.includes(ext)) {
-        imageFiles.push(file);
+        if (imageCapable) imageFiles.push(file);
       } else {
         docFiles.push(file);
       }
@@ -171,7 +176,11 @@ const Attach = ({
                       type="file"
                       onChange={handleChange}
                       ref={fileInputRef}
-                      accept=".pdf,.docx,.txt,.png,.jpg,.jpeg,.gif,.webp"
+                      accept={
+                        imageCapable
+                          ? `${DOC_ACCEPT},${IMAGE_ACCEPT}`
+                          : DOC_ACCEPT
+                      }
                       multiple
                       hidden
                     />
@@ -226,7 +235,7 @@ const Attach = ({
           type="file"
           onChange={handleChange}
           ref={fileInputRef}
-          accept=".pdf,.docx,.txt,.png,.jpg,.jpeg,.gif,.webp"
+          accept={imageCapable ? `${DOC_ACCEPT},${IMAGE_ACCEPT}` : DOC_ACCEPT}
           multiple
           hidden
         />

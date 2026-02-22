@@ -9,6 +9,7 @@ import {
   Globe,
   Settings,
   Image as ImageIcon,
+  ScanEye,
   BotIcon,
   TvIcon,
   X,
@@ -198,6 +199,8 @@ const ToolCall = ({
       case 'image':
       case 'image_search':
         return <ImageIcon size={16} className="text-blue-600" />;
+      case 'image_analysis':
+        return <ScanEye size={16} className="text-teal-600" />;
       case 'firefoxAI':
         return <BotIcon size={16} className="text-indigo-600" />;
       case 'youtube_transcript':
@@ -270,6 +273,18 @@ const ToolCall = ({
           <span>Image search:</span>
           <span className="ml-2 px-2 py-0.5 bg-fg/5 rounded font-mono text-sm">
             {decodeHtmlEntities(query || (children as string))}
+          </span>
+        </>
+      );
+    }
+
+    if (type === 'image_analysis') {
+      return (
+        <>
+          <span className="mr-2">{getIcon(type)}</span>
+          <span>Analyzing image:</span>
+          <span className="ml-2 px-2 py-0.5 bg-fg/5 rounded font-mono text-sm truncate max-w-xs">
+            {decodeHtmlEntities(url || query || (children as string))}
           </span>
         </>
       );

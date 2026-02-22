@@ -527,6 +527,10 @@ export class SimplifiedAgent {
                       const count = inputObj.urls.length;
                       extraAttr += ` count="${count}"`;
                     }
+                    if (typeof inputObj.url === 'string') {
+                      const u = encodeHtmlAttribute(inputObj.url.slice(0, 300));
+                      extraAttr += ` url="${u}"`;
+                    }
                     if (typeof inputObj.pdfUrl === 'string') {
                       const u = encodeHtmlAttribute(
                         inputObj.pdfUrl.slice(0, 300),

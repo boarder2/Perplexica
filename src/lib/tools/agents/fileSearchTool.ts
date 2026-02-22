@@ -46,7 +46,7 @@ export const fileSearchTool = tool(
       const { query, maxResults = 12, similarityThreshold = 0.3 } = input;
 
       const currentState = getCurrentTaskInput() as SimplifiedAgentStateType;
-      let currentDocCount = currentState.relevantDocuments.length;
+      let currentDocCount = currentState.relevantDocuments?.length ?? 0;
 
       // Get signal for cancellation support
       const retrievalSignal: AbortSignal | undefined =
@@ -61,7 +61,9 @@ export const fileSearchTool = tool(
             messages: [
               new ToolMessage({
                 content: 'File search cancelled.',
-                tool_call_id: (config as unknown as { toolCall: { id: string } })?.toolCall.id,
+                tool_call_id: (
+                  config as unknown as { toolCall: { id: string } }
+                )?.toolCall.id,
               }),
             ],
           },
@@ -84,7 +86,9 @@ export const fileSearchTool = tool(
             messages: [
               new ToolMessage({
                 content: 'No files attached to search.',
-                tool_call_id: (config as unknown as { toolCall: { id: string } })?.toolCall.id,
+                tool_call_id: (
+                  config as unknown as { toolCall: { id: string } }
+                )?.toolCall.id,
               }),
             ],
           },
@@ -114,7 +118,9 @@ export const fileSearchTool = tool(
             messages: [
               new ToolMessage({
                 content: 'No searchable content found in attached files.',
-                tool_call_id: (config as unknown as { toolCall: { id: string } })?.toolCall.id,
+                tool_call_id: (
+                  config as unknown as { toolCall: { id: string } }
+                )?.toolCall.id,
               }),
             ],
           },
@@ -174,7 +180,8 @@ export const fileSearchTool = tool(
                 processedFiles: fileIds.length,
                 relevantSections: rankedDocuments.length,
               }),
-              tool_call_id: (config as unknown as { toolCall: { id: string } })?.toolCall.id,
+              tool_call_id: (config as unknown as { toolCall: { id: string } })
+                ?.toolCall.id,
             }),
           ],
         },
@@ -190,7 +197,8 @@ export const fileSearchTool = tool(
           messages: [
             new ToolMessage({
               content: 'Error occurred during file search: ' + errorMessage,
-              tool_call_id: (config as unknown as { toolCall: { id: string } })?.toolCall.id,
+              tool_call_id: (config as unknown as { toolCall: { id: string } })
+                ?.toolCall.id,
             }),
           ],
         },

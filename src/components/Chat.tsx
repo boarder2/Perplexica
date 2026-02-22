@@ -36,6 +36,7 @@ const Chat = ({
   todoItems = [],
   pendingImages,
   setPendingImages,
+  imageCapable = false,
 }: {
   messages: Message[];
   sendMessage: (
@@ -55,7 +56,11 @@ const Chat = ({
   setFiles: (files: File[]) => void;
   focusMode: string;
   setFocusMode: (mode: string) => void;
-  handleEditMessage: (messageId: string, content: string) => void;
+  handleEditMessage: (
+    messageId: string,
+    content: string,
+    images?: ImageAttachment[],
+  ) => void;
   analysisProgress: {
     message: string;
     current: number;
@@ -99,6 +104,7 @@ const Chat = ({
   todoItems?: TodoItemData[];
   pendingImages: ImageAttachment[];
   setPendingImages: (images: ImageAttachment[]) => void;
+  imageCapable?: boolean;
 }) => {
   const [isAtBottom, setIsAtBottom] = useState(true);
   const [manuallyScrolledUp, setManuallyScrolledUp] = useState(false);
@@ -278,6 +284,7 @@ const Chat = ({
               modelStats={modelStats}
               gatheringSources={gatheringSources}
               actionMessageId={currentMessageId}
+              imageCapable={imageCapable}
             />
             {!isLast && msg.role === 'assistant' && (
               <div className="h-px w-full bg-surface-2" />
@@ -339,6 +346,7 @@ const Chat = ({
           refreshPersonalization={refreshPersonalization}
           pendingImages={pendingImages}
           setPendingImages={setPendingImages}
+          imageCapable={imageCapable}
         />
       </div>
       <div ref={messageEnd} className="h-0" />

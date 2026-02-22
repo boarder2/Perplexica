@@ -22,6 +22,7 @@ const EmptyChat = ({
   refreshPersonalization,
   pendingImages,
   setPendingImages,
+  imageCapable = false,
 }: {
   sendMessage: (message: string) => void;
   focusMode: string;
@@ -41,6 +42,7 @@ const EmptyChat = ({
   refreshPersonalization?: () => void;
   pendingImages: ImageAttachment[];
   setPendingImages: (images: ImageAttachment[]) => void;
+  imageCapable?: boolean;
 }) => {
   return (
     <div className="relative">
@@ -73,6 +75,7 @@ const EmptyChat = ({
             refreshPersonalization={refreshPersonalization}
             pendingImages={pendingImages}
             setPendingImages={setPendingImages}
+            imageCapable={imageCapable}
           />
         </div>
       </div>

@@ -28,7 +28,7 @@ User submits a query → API route → `MetaSearchAgent` routes to focus mode ha
 - `/src/lib/search` — `SimplifiedAgent`, `MetaSearchAgent` router, focus-mode handlers
 - `/src/lib/providers` — LLM and embedding model integrations (see **adding-features** skill)
 - `/src/lib/prompts` — Prompt templates including `prompts/simplifiedAgent/*` (see **prompt-system** skill)
-- `/src/lib/tools/agents` — Agent tools (`web_search`, `file_search`, `url_summarization`, `image_search`, `deep_research`, `todo_list`, etc.)
+- `/src/lib/tools/agents` — Agent tools (`web_search`, `file_search`, `url_summarization`, `image_search`, `image_analysis`, `deep_research`, `todo_list`, etc.)
 - `/src/lib/db` — Database schema and operations
 - `/src/lib/chains` — Specialized chains (image/video search helpers)
 - `/src/lib/state` — LangGraph agent state annotations

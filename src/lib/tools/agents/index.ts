@@ -15,10 +15,12 @@ import { youtubeTranscriptTool } from './youtubeTranscriptTool';
 import { pdfLoaderTool } from './pdfLoaderTool';
 import { deepResearchTool } from './deepResearchTool';
 import { todoListTool } from './todoListTool';
+import { imageAnalysisTool } from './imageAnalysisTool';
 
 export { simpleWebSearchTool };
 export { fileSearchTool };
 export { imageSearchTool };
+export { imageAnalysisTool };
 export { youtubeTranscriptTool };
 export { pdfLoaderTool };
 export { deepResearchTool };
@@ -31,6 +33,7 @@ export const allAgentTools = [
   fileSearchTool,
   urlSummarizationTool,
   imageSearchTool,
+  imageAnalysisTool,
   youtubeTranscriptTool,
   pdfLoaderTool,
   deepResearchTool,
@@ -42,6 +45,7 @@ export const webSearchTools = [
   simpleWebSearchTool,
   urlSummarizationTool,
   imageSearchTool,
+  imageAnalysisTool,
   youtubeTranscriptTool,
   pdfLoaderTool,
   deepResearchTool,

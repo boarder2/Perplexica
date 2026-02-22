@@ -360,6 +360,11 @@ const ChatWindow = ({ id }: { id?: string }) => {
 
   const [pendingImages, setPendingImages] = useState<ImageAttachment[]>([]);
 
+  const [imageCapable, setImageCapable] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return localStorage.getItem('imageCapable') === 'true';
+  });
+
   const [focusMode, setFocusMode] = useState('webSearch');
   const [systemPromptIds, setSystemPromptIds] = useState<string[]>([]);
 
@@ -427,6 +432,17 @@ const ChatWindow = ({ id }: { id?: string }) => {
       window.removeEventListener('personalization-update', handleCustom);
     };
   }, [refreshPersonalization]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handleImageCapableStorage = () => {
+      setImageCapable(localStorage.getItem('imageCapable') === 'true');
+    };
+    window.addEventListener('storage', handleImageCapableStorage);
+    return () => {
+      window.removeEventListener('storage', handleImageCapableStorage);
+    };
+  }, []);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -499,6 +515,7 @@ const ChatWindow = ({ id }: { id?: string }) => {
       messageId?: string;
       suggestions?: string[];
       editMode?: boolean;
+      images?: ImageAttachment[];
     },
   ) => {
     const userLocation = sendLocation ? personalizationLocation : '';
@@ -555,8 +572,15 @@ const ChatWindow = ({ id }: { id?: string }) => {
     const messageId =
       options?.messageId ?? crypto.randomBytes(7).toString('hex');
 
+    // In edit mode, use explicitly-provided images; otherwise use pendingImages
     const messageImages =
-      pendingImages.length > 0 ? [...pendingImages] : undefined;
+      options?.images !== undefined
+        ? options.images.length > 0
+          ? options.images
+          : undefined
+        : pendingImages.length > 0
+          ? [...pendingImages]
+          : undefined;
     const messageImageIds = messageImages?.map((img) => img.imageId);
 
     setMessages((prevMessages) => [
@@ -1294,7 +1318,11 @@ const ChatWindow = ({ id }: { id?: string }) => {
     });
   };
 
-  const handleEditMessage = async (messageId: string, newContent: string) => {
+  const handleEditMessage = async (
+    messageId: string,
+    newContent: string,
+    images?: ImageAttachment[],
+  ) => {
     // Get the index of the message being edited
     const messageIndex = messages.findIndex(
       (msg) => msg.messageId === messageId,
@@ -1305,6 +1333,7 @@ const ChatWindow = ({ id }: { id?: string }) => {
       sendMessage(newContent, {
         messageId,
         editMode: true,
+        images,
       });
     } catch (error) {
       console.error('Error updating message:', error);
@@ -1411,6 +1440,7 @@ const ChatWindow = ({ id }: { id?: string }) => {
               todoItems={todoItems}
               pendingImages={pendingImages}
               setPendingImages={setPendingImages}
+              imageCapable={imageCapable}
             />
           </>
         ) : (
@@ -1433,6 +1463,7 @@ const ChatWindow = ({ id }: { id?: string }) => {
             refreshPersonalization={refreshPersonalization}
             pendingImages={pendingImages}
             setPendingImages={setPendingImages}
+            imageCapable={imageCapable}
           />
         )}
       </div>

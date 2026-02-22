@@ -18,6 +18,7 @@ const STORAGE_KEYS = {
   systemProvider: 'systemModelProvider',
   systemModel: 'systemModel',
   link: 'linkSystemToChat',
+  imageCapable: 'imageCapable',
 } as const;
 
 export default function ModelConfigurator({
@@ -38,6 +39,15 @@ export default function ModelConfigurator({
       return true;
     }
   });
+  const [imageCapable, setImageCapable] = useState<boolean>(() => {
+    try {
+      if (typeof window === 'undefined') return false;
+      return localStorage.getItem(STORAGE_KEYS.imageCapable) === 'true';
+    } catch {
+      return false;
+    }
+  });
+
   // Prevent post-mount effects from using pre-hydration default values
   const [hydrated, setHydrated] = useState(false);
   const [chatModel, setChatModel] = useState<SelectedModel>(null);
@@ -102,6 +112,12 @@ export default function ModelConfigurator({
       localStorage.setItem(STORAGE_KEYS.systemModel, chatModel.model);
     }
   }, [hydrated, linkSystemToChat, chatModel]);
+
+  const handleImageCapableChange = (value: boolean) => {
+    setImageCapable(value);
+    localStorage.setItem(STORAGE_KEYS.imageCapable, value ? 'true' : 'false');
+    window.dispatchEvent(new Event('storage'));
+  };
 
   const handleSelectChat = (m: { provider: string; model: string }) => {
     setChatModel(m);
@@ -206,6 +222,33 @@ export default function ModelConfigurator({
                             linkSystemToChat
                               ? 'translate-x-5'
                               : 'translate-x-0',
+                          )}
+                        />
+                      </div>
+                    </label>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="text-xs text-fg/80">Vision capable</span>
+                      <p className="text-[10px] text-fg/50 mt-0.5">
+                        Allow image attachments for the selected chat model
+                      </p>
+                    </div>
+                    <label className="inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        className="sr-only peer"
+                        checked={imageCapable}
+                        onChange={(e) =>
+                          handleImageCapableChange(e.target.checked)
+                        }
+                      />
+                      <div className="w-10 h-5 bg-surface-2 rounded-full peer peer-checked:bg-accent transition-colors relative">
+                        <div
+                          className={cn(
+                            'absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform',
+                            imageCapable ? 'translate-x-5' : 'translate-x-0',
                           )}
                         />
                       </div>
