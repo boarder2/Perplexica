@@ -41,7 +41,7 @@ export interface SubagentExecution {
 
 /**
  * State schema for the simplified chat agent using tool-based workflow
- * This state is designed for use with createReactAgent and focuses on
+ * This state is designed for use with createAgent and focuses on
  * accumulating relevant documents across tool calls while maintaining
  * message history for the agent's decision-making process.
  */

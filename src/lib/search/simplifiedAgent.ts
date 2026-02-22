@@ -20,7 +20,7 @@ import { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import { BaseMessage, HumanMessage } from '@langchain/core/messages';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
 import { RunnableConfig, RunnableSequence } from '@langchain/core/runnables';
-import { createReactAgent } from '@langchain/langgraph/prebuilt';
+import { createAgent } from 'langchain';
 import { EventEmitter } from 'events';
 import { Document } from '@langchain/core/documents';
 import { webSearchResponsePrompt } from '../prompts/webSearch';
@@ -182,7 +182,7 @@ export class SimplifiedAgent {
   }
 
   /**
-   * Initialize the createReactAgent with tools and configuration
+   * Initialize the createAgent with tools and configuration
    */
   private initializeAgent(
     focusMode: string,
@@ -217,11 +217,11 @@ export class SimplifiedAgent {
 
     try {
       // Create the React agent with custom state
-      const agent = createReactAgent({
-        llm: this.chatLlm,
+      const agent = createAgent({
+        model: this.chatLlm,
         tools,
         stateSchema: SimplifiedAgentState,
-        prompt: enhancedSystemPrompt,
+        systemPrompt: enhancedSystemPrompt,
       });
 
       console.log(
@@ -406,6 +406,7 @@ export class SimplifiedAgent {
         focusMode,
         fileIds,
         relevantDocuments: [],
+        subagentExecutions: [],
       };
 
       // Configure the agent run
@@ -816,7 +817,7 @@ export class SimplifiedAgent {
           }
 
           // Handle streaming tool calls (for thought messages)
-          // Only count events from the 'agent' node (createReactAgent's LLM node).
+          // Only count events from the 'agent' node (createAgent's LLM node).
           // In LangChain/LangGraph v1.x, AsyncLocalStorage propagates parent callbacks into
           // tool executions, so system model llm.invoke() calls inside tools also fire
           // on_chat_model_end in this stream. Those events have langgraph_node === 'tools'

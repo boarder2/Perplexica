@@ -11,7 +11,7 @@ import {
   getCustomOpenaiModelName,
 } from '@/lib/config';
 import { ChatOllama } from '@langchain/ollama';
-import { createReactAgent } from '@langchain/langgraph/prebuilt';
+import { createAgent } from 'langchain';
 import { allTools } from '@/lib/tools';
 import { Source } from '@/lib/types/widget';
 import { WidgetProcessRequest } from '@/lib/types/api';
@@ -134,9 +134,9 @@ async function processWithLLM(
       ? allTools.filter((tool) => tool_names.includes(tool.name))
       : [];
 
-  // Create the React agent with tools
-  const agent = createReactAgent({
-    llm,
+  // Create the agent with tools
+  const agent = createAgent({
+    model: llm,
     tools,
   });
 

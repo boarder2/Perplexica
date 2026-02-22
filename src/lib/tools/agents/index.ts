@@ -2,7 +2,7 @@
  * Agent Tools for Simplified Chat Agent
  *
  * This module exports all the tools that reimplement the functionality of the
- * existing LangGraph agents for use with createReactAgent. Each tool encapsulates
+ * existing LangGraph agents for use with createAgent. Each tool encapsulates
  * the core logic of its corresponding agent and follows the Command pattern for
  * state management.
  */
@@ -25,7 +25,7 @@ export { deepResearchTool };
 export { todoListTool };
 
 // Array containing all available agent tools for the simplified chat agent
-// This will be used by the createReactAgent implementation
+// This will be used by the createAgent implementation
 export const allAgentTools = [
   simpleWebSearchTool,
   fileSearchTool,

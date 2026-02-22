@@ -413,9 +413,9 @@ Implementation notes (key files):
 ## Available Tools and Help
 
 - You can use the context7 tool to get help using the following identifiers for libraries used in this project
-  - `/langchain-ai/langchainjs` for LangChain
-  - `/langchain-ai/langgraphjs` for LangGraph
   - `/quantizor/markdown-to-jsx` for Markdown to JSX conversion
   - `/context7/headlessui_com` for Headless UI components
   - `/tailwindlabs/tailwindcss.com` for Tailwind CSS documentation
   - `/vercel/next.js` for Next.js documentation
+
+- Use the `docs-langchain` tool to query documentation for LangChain or LangGraph when implementing or modifying agents and chains.
